@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StegAnalyzer Pro v3.7.0 — Deep Analysis Toolkit</title>
+
+<!-- External libraries for QR and OCR -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<style>
+:root {
+  --bg:#0b121f;--bg2:#0d1931;--bg3:#111d33;
+  --green:#9fef00;--green-dim:rgba(159,239,0,.35);--green-glow:rgba(159,239,0,.6);
+  --red:#ff4d4d;--blue:#4da6ff;--yellow:#ffcc00;--cyan:#00e6e6;
+  --text:#d0d0d0;--font:'Fira Code','Cascadia Code','JetBrains Mono',monospace;--radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+::selection{background:#c9fbff;color:#000}
+html{font-size:15px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden}
+h1,h2,h3,h4,strong,.hl{color:var(--green);text-shadow:0 0 5px var(--green-dim)}
+a{color:var(--green);text-decoration:none}a:hover{text-shadow:0 0 6px var(--green)}
+.wrap{max-width:1340px;margin:0 auto;padding:20px}
+header{display:flex;align-items:center;gap:18px;margin-bottom:24px;flex-wrap:wrap}
+header .logo{width:60px;height:60px}
+header .brand h1{font-size:2.1rem;line-height:1;font-weight:400;letter-spacing:-1px;color:var(--green)}
+header .brand small{color:var(--green);font-size:.85rem;opacity:.7}
+.tagline{color:var(--text);font-size:.82rem;margin-bottom:20px;opacity:.65;max-width:750px}
+.upload-card{background:var(--bg);border:1px solid var(--green);border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:0 0 12px var(--green-dim);transition:.4s}
+.upload-card.collapsed{padding:10px 20px;margin-bottom:12px}
+.upload-card.collapsed #drop-zone{display:none}
+.upload-card.collapsed .upload-extras{display:none}
+#drop-zone{border:2px dashed var(--green);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:.3s;background:var(--bg)}
+#drop-zone:hover,#drop-zone.over{background:var(--bg2);box-shadow:0 0 20px var(--green-dim)}
+#drop-zone p{color:var(--green);margin-bottom:10px}
+#file-input{display:none}
+.upload-extras{margin-top:12px}
+.upload-extras label{font-size:.82rem;color:var(--green)}
+.upload-extras input[type=text]{background:var(--bg);color:var(--text);border:1px solid var(--green);padding:6px 12px;border-radius:4px;font-family:var(--font);font-size:.82rem;width:250px}
+.upload-extras input:focus{outline:none;box-shadow:0 0 8px var(--green-dim);background:var(--bg2)}
+#global-progress{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid rgba(159,239,0,.15);padding:8px 20px;margin:0 -20px 16px;display:none}
+.prog-bar-wrap{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;margin:4px 0}
+.prog-bar{height:100%;background:var(--green);border-radius:3px;transition:width .3s;width:0;box-shadow:0 0 8px var(--green-glow)}
+.prog-status{font-size:.78rem;color:var(--text);display:flex;justify-content:space-between}
+.prog-status .step{color:var(--green)}
+.card{background:var(--bg);border:1px solid var(--green);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:0 0 12px var(--green-dim);opacity:0;transform:translateY(12px);transition:opacity .4s,transform .4s}
+.card.visible{opacity:1;transform:translateY(0)}
+.card h2{font-size:1.05rem;margin-bottom:10px;font-weight:400;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3{font-size:.9rem;margin:12px 0 6px;font-weight:400}
+.card p.desc{font-size:.8rem;color:var(--text);opacity:.7;margin-bottom:10px}
+.btn{background:var(--green);color:#000;border:none;padding:7px 16px;border-radius:var(--radius);cursor:pointer;font-family:var(--font);font-size:.82rem;transition:.2s}
+.btn:hover{box-shadow:0 0 12px var(--green-glow);transform:translateY(-1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-sm{padding:4px 10px;font-size:.75rem}
+.btn-outline{background:transparent;border:1px solid var(--green);color:var(--green)}
+.btn-outline:hover{background:var(--green);color:#000}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:8px 0}
+.img-grid .cell{position:relative;border:1px solid rgba(159,239,0,.2);border-radius:4px;overflow:hidden;cursor:pointer;transition:.2s;background:#000}
+.img-grid .cell:hover{border-color:var(--green);box-shadow:0 0 8px var(--green-dim)}
+.img-grid .cell canvas{width:100%;display:block;image-rendering:auto}
+.img-grid .cell .label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);color:var(--green);font-size:.68rem;padding:2px 6px;text-align:center}
+.ctrl-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+.ctrl-row label{font-size:.8rem;color:var(--green)}
+.ctrl-row select,.ctrl-row input[type=number]{background:var(--bg);color:var(--text);border:1px solid var(--green);padding:4px 8px;border-radius:4px;font-family:var(--font);font-size:.8rem}
+.ctrl-row select:focus,.ctrl-row input:focus{outline:none;box-shadow:0 0 8px var(--green-dim)}
+input[type=range]{accent-color:var(--green)}
+pre{background:var(--bg);border:1px solid var(--green);border-radius:var(--radius);padding:12px;max-height:280px;overflow:auto;font-size:.75rem;color:var(--text);white-space:pre-wrap;word-break:break-all}
+.hex-view .offset{color:var(--green);user-select:none}
+.hex-view .ascii{color:var(--yellow)}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th,td{padding:5px 8px;border-bottom:1px solid rgba(159,239,0,.12);text-align:left}
+th{color:var(--green);font-weight:400}
+td:first-child{color:var(--green)}
+.histo-wrap{display:flex;gap:8px;flex-wrap:wrap}
+.histo-wrap canvas{border:1px solid rgba(159,239,0,.2);border-radius:4px;flex:1;min-width:180px;max-height:180px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;justify-content:center;align-items:center;z-index:1000;opacity:0;visibility:hidden;transition:.3s}
+.modal-bg.show{opacity:1;visibility:visible}
+.modal-bg canvas{max-width:92vw;max-height:90vh;border:2px solid var(--green);box-shadow:0 0 30px var(--green-dim);cursor:pointer}
+footer{margin-top:30px;padding:14px 0;border-top:1px solid rgba(159,239,0,.15);text-align:center;font-size:.75rem;color:rgba(159,239,0,.4)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--green-dim);border-top-color:var(--green);border-radius:50%;animation:sp .5s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.badge{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:10px;margin-left:8px}
+.badge-run{background:rgba(159,239,0,.12);color:var(--green)}
+.badge-done{background:rgba(159,239,0,.2);color:var(--green)}
+.cmd-box{background:var(--bg2);border:1px solid rgba(159,239,0,.3);border-radius:4px;padding:8px 12px;margin-bottom:12px;font-size:.75rem;position:relative;overflow-x:auto}
+.cmd-box code{color:var(--green);display:block;line-height:1.7;white-space:pre}
+.cmd-box .cmd-label{position:absolute;top:4px;right:8px;font-size:.62rem;color:rgba(159,239,0,.4);text-transform:uppercase;letter-spacing:1px;user-select:none}
+.cmd-box .prompt{color:var(--cyan);user-select:none}
+.cmd-box .comment{color:rgba(255,255,255,.3);font-style:italic}
+.qr-found{background:rgba(159,239,0,.08);border:1px solid var(--green);border-radius:var(--radius);padding:12px;margin:8px 0}
+.docs{background:var(--bg);border:1px solid var(--green);border-radius:var(--radius);margin-bottom:20px;box-shadow:0 0 12px var(--green-dim);overflow:hidden}
+.docs>summary{cursor:pointer;padding:12px 18px;color:var(--green);font-size:.92rem;list-style:none;user-select:none;display:flex;align-items:center;gap:10px;transition:background .2s}
+.docs>summary::-webkit-details-marker{display:none}
+.docs>summary::before{content:'▸';display:inline-block;transition:transform .2s;color:var(--green)}
+.docs[open]>summary::before{transform:rotate(90deg)}
+.docs>summary:hover{background:var(--bg2);text-shadow:0 0 6px var(--green)}
+.docs>summary .cnt{margin-left:auto;font-size:.72rem;opacity:.55;color:var(--text)}
+.docs-body{padding:4px 18px 16px;border-top:1px solid rgba(159,239,0,.15)}
+.docs-body p.intro{font-size:.8rem;color:var(--text);opacity:.7;margin:10px 0}
+.docs-body h4{color:var(--green);font-size:.8rem;margin:14px 0 4px;font-weight:400;opacity:.85}
+.docs-body table{width:100%;border-collapse:collapse;font-size:.78rem}
+.docs-body td{padding:4px 8px;border-bottom:1px solid rgba(159,239,0,.1);vertical-align:top}
+.docs-body td.n{color:var(--green);width:26px;text-align:right;user-select:none;opacity:.7}
+.docs-body td.t{color:var(--green);white-space:nowrap;width:1%;padding-right:14px}
+.docs-body td.d{color:var(--text);opacity:.85}
+.b64box{border:1px solid var(--yellow);border-radius:var(--radius);padding:8px 10px;margin:6px 0;background:rgba(255,204,0,.05)}
+.b64box .enc{font-size:.72rem;color:var(--yellow);word-break:break-all}
+.b64box .lyr{font-size:.82rem;color:var(--green);margin-top:4px;word-break:break-all}
+.b64box .lyr .tag{color:var(--yellow);font-size:.72rem}
+.b64box .meta{font-size:.68rem;opacity:.55;margin-top:4px;color:var(--text)}
+.b64box .scm{font-size:.64rem;background:rgba(159,239,0,.12);color:var(--green);padding:1px 5px;border-radius:3px;margin-right:2px;text-transform:uppercase;letter-spacing:.04em}
+.b64act{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.b64btn{background:var(--bg2);color:var(--green);border:1px solid var(--green);border-radius:var(--radius);padding:5px 10px;font-size:.75rem;cursor:pointer;font-family:inherit;transition:.15s}
+.b64btn:hover{background:var(--green);color:var(--bg);box-shadow:0 0 8px var(--green)}
+.lab-ta{width:100%;min-height:84px;background:var(--bg);color:var(--green);border:1px solid var(--green);border-radius:var(--radius);padding:8px;font-family:inherit;font-size:.82rem;resize:vertical;box-sizing:border-box}
+.lab-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.lab-key{background:var(--bg);color:var(--green);border:1px solid var(--green);border-radius:var(--radius);padding:5px 8px;font-family:inherit;font-size:.78rem}
+.lab-hex{font-size:.75rem;color:var(--text);opacity:.85;display:flex;align-items:center;gap:4px;cursor:pointer}
+@media(max-width:768px){html{font-size:13px}.img-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}.wrap{padding:12px}header .brand h1{font-size:1.6rem}}
+@media(max-width:480px){.img-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" stroke="#9fef00" stroke-width="2" fill="none"/><circle cx="32" cy="32" r="20" stroke="#9fef00" stroke-width="1.5" fill="none" opacity=".5"/><circle cx="32" cy="32" r="10" stroke="#9fef00" stroke-width="1" fill="none" opacity=".3"/><line x1="32" y1="2" x2="32" y2="62" stroke="#9fef00" stroke-width=".5" opacity=".3"/><line x1="2" y1="32" x2="62" y2="32" stroke="#9fef00" stroke-width=".5" opacity=".3"/><text x="32" y="37" text-anchor="middle" fill="#9fef00" font-family="monospace" font-size="14" font-weight="bold">SA</text></svg>
+    <div class="brand"><h1>StegAnalyzer Pro</h1><small>v3.7.0 — Header repair + PDF metadata + backend</small></div>
+  </header>
+  <p class="tagline">Drop an image — full deep analysis runs automatically. Results stream in progressively: light analyses first, heavy last. <span class="privacy-claim">100% client-side, no data leaves your browser.</span></p>
+  <details class="docs">
+    <summary>&#128218; All tools &amp; documentation<span class="cnt">22 modules &middot; runs top-to-bottom</span></summary>
+    <div class="docs-body">
+      <p class="intro">Every module below runs automatically on the file you drop, in this order. Each also prints the equivalent Kali CLI commands.</p>
+      <p class="intro" style="opacity:.85">Slipper du inn en <b>PDF</b> i stedet: /Info-metadata (Author/Title/&hellip;) trekkes ut og base64/hex/binær-felter dekodes automatisk &mdash; flagg uthevet. Tung PDF-carving dekkes av backend (binwalk/foremost).</p>
+      <h4>Identify &amp; structure</h4>
+      <table>
+        <tr><td class="n">1</td><td class="t">Encoded Layer</td><td class="d">Detects when the dropped file is itself binary/hex/base64 text hiding another file; decodes one layer and, if the result is an image, re-feeds it through every module below so OCR reads the flag. Non-image payloads (zip/pdf) get a download link.</td></tr>
+        <tr><td class="n">&#128295;</td><td class="t">Corrupt-header repair</td><td class="d">When a file won&rsquo;t render as an image, detects a known type whose magic bytes are damaged but whose body survives &mdash; JPEG (JFIF/Exif), PNG (IHDR/IDAT/IEND), GIF, ZIP (central dir), PDF (endobj/xref) &mdash; shows the header hex (current vs&nbsp;expected) and offers a one-click repair that rewrites the signature and re-runs every module on the fixed file. Any other unloadable file now degrades gracefully instead of crashing.</td></tr>
+        <tr><td class="n">2</td><td class="t">File Information</td><td class="d">Magic bytes, dimensions, MIME, unique colours, alpha, bit depth.</td></tr>
+        <tr><td class="n">3</td><td class="t">Metadata / EXIF</td><td class="d">EXIF/JFIF markers, PNG tEXt/iTXt/zTXt chunks, embedded software hints.</td></tr>
+        <tr><td class="n">4</td><td class="t">File Structure</td><td class="d">PNG chunk table (with CRC) or JPEG marker table.</td></tr>
+        <tr><td class="n">5</td><td class="t">Embedded File Scan</td><td class="d">Finds the primary payload boundary; loudly flags files appended after the image; gives a dd/binwalk extract command.</td></tr>
+        <tr><td class="n">7</td><td class="t">Hex Dump</td><td class="d">Header (512 B) + tail (256 B) in hex and ASCII.</td></tr>
+      </table>
+      <h4>Visual analysis</h4>
+      <table>
+        <tr><td class="n">8</td><td class="t">Channel Decomposition</td><td class="d">R / G / B / Alpha plus grayscale and luminance renders.</td></tr>
+        <tr><td class="n">9</td><td class="t">Color Remapping</td><td class="d">Random palette remap — reveals flat, invisible hidden regions.</td></tr>
+        <tr><td class="n">10</td><td class="t">Histogram Analysis</td><td class="d">Per-channel + luminance histograms and averages.</td></tr>
+        <tr><td class="n">11</td><td class="t">Auto Filters</td><td class="d">Invert, grayscale, Sobel edge, XOR combos, threshold.</td></tr>
+        <tr><td class="n">12</td><td class="t">XOR Channel Ops</td><td class="d">R&oplus;G, R&oplus;B, G&oplus;B, R&oplus;G&oplus;B within the image.</td></tr>
+        <tr><td class="n">16</td><td class="t">Visual Entropy Map</td><td class="d">Block-entropy heatmap; warns on high entropy (encrypted/hidden data).</td></tr>
+      </table>
+      <h4>Hidden-data extraction</h4>
+      <table>
+        <tr><td class="n">6</td><td class="t">Strings Extraction</td><td class="d">Printable strings + auto-decode (base64/base32/hex, recursive) + password check.</td></tr>
+        <tr><td class="n">13</td><td class="t">Bit Plane Analysis</td><td class="d">32 planes (8 bits &times; RGBA), LSB&rarr;MSB. Capped to ~1 MP to bound memory.</td></tr>
+        <tr><td class="n">14</td><td class="t">LSB + Brute Force</td><td class="d">7 LSB configs, XOR wordlist brute force, auto-decode (base64/base32/hex).</td></tr>
+        <tr><td class="n">15</td><td class="t">LSB Custom Patterns</td><td class="d">Row / column / spiral / zigzag pixel ordering.</td></tr>
+        <tr><td class="n">17</td><td class="t">QR / Pattern Detection</td><td class="d">jsQR decode + finder-pattern heuristic + LSB-plane fallback.</td></tr>
+        <tr><td class="n">18</td><td class="t">OCR Text Recognition</td><td class="d">Multi-pass Tesseract OCR &mdash; raw + upscaled greyscale + upscaled min-channel contrast (colour&rarr;black, no thresholding); scores every pass, surfaces the best flag match, and normalises brace mis-reads (( ) [ ] &rarr; { }) so the flag comes out clean; it also auto-decodes hex/base64/binary OCR output &mdash; including a hex run buried in a busy image&rsquo;s background text &mdash; so an encoded flag surfaces.</td></tr>
+      </table>
+      <h4>Interactive tools</h4>
+      <table>
+        <tr><td class="n">19</td><td class="t">Pixel Inspector</td><td class="d">Hover/click for RGBA, hex, per-channel binary, and a zoom loupe.</td></tr>
+        <tr><td class="n">20</td><td class="t">Image Combiner</td><td class="d">XOR / AND / OR / SUB / ADD against a second uploaded image.</td></tr>
+        <tr><td class="n">21</td><td class="t">Stereogram Solver</td><td class="d">Auto-offset XOR with a shifted copy of itself.</td></tr>
+        <tr><td class="n">22</td><td class="t">Decoder Lab</td><td class="d">Consolidates every encoded finding, plus a manual workbench: paste/select text → decode (base64/base32/hex, recursive), XOR brute, ROT/Caesar brute.</td></tr>
+      </table>
+    </div>
+  </details>
+  <div class="upload-card" id="upload-card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><h2 style="margin:0;font-size:1.05rem">&#128194; Upload Image</h2><span id="file-badge" style="font-size:.8rem;color:var(--text);opacity:.7"></span></div>
+    <div id="drop-zone"><p>&#128194; Drag &amp; drop an image here, or click anywhere to select</p><input type="file" id="file-input" accept="image/*"></div>
+    <div class="upload-extras"><div class="ctrl-row"><label>Password (optional):</label><input type="text" id="password" placeholder="For steghide/LSB extraction"></div></div>
+  </div>
+  <div id="global-progress"><div class="prog-status"><span id="prog-step" class="step"><span class="spin"></span> Starting...</span><span id="prog-pct">0%</span></div><div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar"></div></div></div>
+  <div id="results"></div>
+</div>
+<div class="modal-bg" id="modal"><canvas id="modal-canvas"></canvas></div>
+<footer><div class="wrap">StegAnalyzer Pro v3.7.0 — QR (jsQR), OCR (Tesseract), XOR, Custom LSB, Encoded Layer, corrupt-header repair, PDF metadata + local backend. <span class="privacy-claim">No data leaves your browser.</span></div></footer>
+<script>
+/* ── StegAnalyzer Pro — CHANGELOG ─────────────────────────────
+   v3.7.0 (minor, apv2.1 — korrupt-header-reparasjon):
+     • Ny: når en fil ikke lastes som bilde, kjennes typen igjen på en kropps-markør
+       som overlever header-korrupsjon — JPEG (JFIF/Exif), PNG (IHDR/IDAT/IEND),
+       GIF, ZIP (sentral katalog), PDF (endobj/xref). Panelet viser header-hexen
+       (nå vs. skal-være) og tilbyr ett-klikks reparasjon som skriver riktig
+       signatur og kjører HELE analysen på nytt på den fiksede fila.
+     • Krasj-fiks på kjøpet: handleNonImage er pakket i try/catch — en fil som ikke
+       kan lastes degraderer nå pent i stedet for å krasje verktøyet.
+     • Dekker header-korrupsjon; dypere skade (chunk-lengder osv.) henvises til
+       hexed.it. (Verifisert med node-bolletest, 7 assertions, mot ekte korrupt JPEG/PNG.)
+   v3.6.2 (patch, apv2.1 — OCR auto-dekod i travle bilder):
+     • Auto-dekoden trekker nå ut hex-KJØRER inni OCR-teksten i stedet for å kreve
+       at HELE teksten er ren hex. Løser bilder der flagg-hexen ligger nederst mens
+       resten av bildet er fullt av bakgrunnstekst (falsk skjermkode osv.) — OCR-en
+       leser alt, men vi finner og dekoder hex-kjøren i støyen.
+     • Håndterer også hex med mellomrom inni (OCR deler ofte opp lange tallrekker).
+     • Gammel oppførsel bevart: rent hex/base64-bilde og PDF-metadata dekodes som før.
+       (Verifisert med node-bolletest, 5 assertions.)
+   v3.6.1 (patch, apv2.1 — OCR auto-dekod):
+     • OCR-modulen auto-dekoder nå selve OCR-teksten: leser den ut en ren hex-,
+       base64- eller binærstreng, dekodes den (whitespace strippet) og flagget vises.
+       Løser "flagg ligger som hex/base64 synlig i bildet"-klassen — OCR finner
+       strengen, verktøyet dekoder den. (Verifisert med node-bolletest, 6 assertions.)
+     • tryDecodeStr prøver nå hex FØR base64 (ren hex er mer spesifikt; en hex-streng
+       er også gyldig base64-tegnsett). PDF-metadata-base64 uendret (har ikke-hex-tegn).
+     • Scoringen favoriserer passeringer som auto-dekoder til et flagg.
+   v3.6.0 (minor, apv2.1 — PDF-metadata):
+     • Nytt: PDF-filer håndteres klientside. Slippes en PDF (som før feilet som
+       bilde), trekkes /Info-metadatafeltene (/Author, /Title, /Subject, /Keywords,
+       /Creator, /Producer, datoer) ut med regex på rå-bytene — ingen bibliotek.
+       Både (...)- og <hex>-strengform + PDF-escapes håndteres (\075 -> =).
+     • Hvert felt auto-dekodes (base64/hex/binær) hvis verdien er lesbar; flagg
+       uthevet. Løser "encoded string gjemt i PDF-metadata"-klassen. (Verifisert mot
+       en picoCTF-oppgave med node-bolletest: /Author base64 -> picoCTF{...}.)
+     • Kobles inn via img.onerror -> handleNonImage(): PDF sjekkes først, ellers
+       encoded-layer-veien. Tung carving (skjulte streams/filer) forblir backend-
+       binwalk/foremost sin jobb (lett i nettleser, tungt i backend).
+   v3.5.1 (patch, apv2.1 — multi-pass OCR):
+     • doOCR omskrevet fra ett bart Tesseract-kall til multi-pass med SKÅNSOM
+       forbehandling: rå + oppskalert gråtone + oppskalert min-kanal-kontrast
+       (min(R,G,B) gjør farget/svart tekst mørk på hvit uten binarisering).
+       Passeringene scores — et flagg-mønster ({…}) vinner, så konfidens — beste
+       vises, alle i en utvidbar liste. Rå-passeringen sikrer at det aldri blir
+       dårligere enn før. (Scoring verifisert med node-bolletest.)
+     • En tidligere variant med Otsu-binarisering + inversjon ble forkastet: den
+       ødela ren, tynn syntetisk tekst (flagg-render) i stedet for å hjelpe. OCR
+       er best-effort; det rendrede bildet er den pålitelige avlesningen.
+     • Klamme-normalisering: Tesseract leser { som ( og } som ] på tynne fonter, så
+       flagg-mønsteret normaliserer bracket-varianter til {} før treff. Både rå
+       OCR-tekst og det normaliserte flagget vises. (Verifisert på picoCTF-flagget:
+       picoCTF(h1dd3n..._d4e39e9e] -> picoCTF{h1dd3n..._d4e39e9e}.)
+   v3.5.0 (minor, apv2.1 — Encoded Layer + backend CLI):
+     • New module "Encoded Layer": when the uploaded file itself is an encoding
+       (ASCII binary / hex / base64 text) hiding another file, it is decoded ONE
+       layer and — if the result is an image — re-fed through the full pipeline via
+       loadImg(), so all modules (incl. OCR) run on the decoded image. Solves the
+       "digits.bin → JPEG → flag painted into the image" class without CyberChef.
+     • Hook is img.onerror, so non-image uploads no longer fail silently. Decoded
+       non-image content (zip/pdf/…) gets a Download card; truly unhandled files get
+       a clear message pointing to the backend panel. False-positive guarded: a real
+       image yields no phantom layer. (Verified by a 10-assertion node bolletest
+       against the real digits.bin + hex/base64/false-positive fixtures.)
+     • Backend panel now prints the CLI equivalent ($ binwalk -e <file>, etc.) above
+       each tool result, matching the per-module CLI boxes.
+   v3.4.0 (minor, apv2.1 — Etappe 4 of base64 buildout, FINAL):
+     • New module 21 "Decoder Lab": consolidates every encoded finding from the
+       other modules in one place, PLUS a manual workbench — paste or highlight
+       any text on the page and run it through the decode engine (base64/base32/
+       hex, recursive), a single-byte XOR brute, or a ROT/Caesar brute.
+     • XOR + ROT primitives added; brute results ranked by a STRICT flag pattern
+       (flag{/ctf{/picoCTF{/…) so the real key/shift surfaces instead of a loose
+       word{...} coincidence. (Verified by a 5-assertion node bolletest.)
+     • Pipeline is now 21 modules (banner + docs panel updated automatically).
+       Base64 buildout complete (Etapper 1–4).
+   v3.3.0 (minor, apv2.1 — Etappe 3 of base64 buildout):
+     • Decode engine is now multi-scheme: base32 (A–Z2–7) and hex added alongside
+       base64, tried per layer with the best-scoring scheme chosen by decoded quality
+       (disambiguates hex vs base32 vs base64). Recursion works across schemes
+       (e.g. base64→hex, base32→base64); each layer's scheme is labelled.
+     • Decoded-to-file flow: when a decode yields a file (PNG/ZIP/PDF/…), a Download
+       button appears; image results also get an "Analyze this" button that re-runs the
+       decoded image through the full pipeline (via loadFile).
+     • Line-group scan hardened: a stray adjacent word can no longer corrupt a
+       multi-line blob (trims one line off each end as fallback candidates).
+       (Verified by a 26-assertion node bolletest incl. base32/hex, cross-scheme
+       recursion, scheme disambiguation, and random-binary noise rejection.)
+   v3.2.0 (minor, apv2.1 — Etappe 2 of base64 buildout):
+     • New shared decode engine: URL-safe (-_) + unpadded base64, recursive
+       multi-layer decode (≤5, full chain shown), whitespace/multi-line tolerant.
+       Candidates judged by DECODED quality (printable ratio / flag markers / file
+       magic), which cuts false positives on plain-text-in-alphabet and binary noise.
+     • Strings (mod 5) now scans the whole file (latin1), so multi-line and
+       metadata-embedded base64 is caught, not just per-string standard base64.
+     • LSB (mod 13) base64 detection routed through the same engine.
+       (Verified by a 14-assertion node bolletest incl. url-safe, unpadded,
+       3-layer recursion, multi-line rejoin, and false-positive rejection.)
+   v3.1.0 (minor, apv2.1 — Etappe 1 of base64 buildout):
+     • Added an in-page "All tools & documentation" collapsible panel (native
+       details/summary) listing all 20 modules, grouped by category. Docs only —
+       no analysis logic touched.
+   v3.0.2 (patch, apv2.1): embedded-scan accuracy + robustness.
+     • Embedded File Scan reworked for CTF: finds the primary image payload boundary
+       (PNG IEND / JPEG EOI), loudly flags signatures in APPENDED/trailing data (real
+       embeds), and demotes coincidental short (<4B) magics inside pixel data to a
+       collapsible section. Adds a dd/binwalk extract command at the detected offset.
+     • Bit Plane Analysis: working area capped to ~1 MP via nearest-neighbour sampling
+       of the original bits, so 32 planes no longer exhaust memory on large photos
+       (images <=1 MP render unchanged; LSB patterns preserved).
+     • Completion banner uses steps.length instead of a hardcoded "20".
+   v3.0.1 (patch, apv2.1): bugfixes only, no feature changes.
+     • Histogram: R/G/B/Luminance canvases no longer wiped blank
+       (innerHTML+= replaced the just-drawn <canvas> elements → insertAdjacentHTML).
+     • Entropy map: same canvas-wipe fixed for the >7.2 high-entropy warning path.
+     • PNG structure: CRC values with high bit set no longer render as negative hex
+       (r32 coerced to unsigned via >>>0).
+   ──────────────────────────────────────────────────────────── */
+let fileBuffer=null,fileBytes=null,fileName='',fileType='',origImage=null,imgData=null,imgW=0,imgH=0,combinerImage=null,encodedLayerInfo=null;
+const esc=s=>{const d=document.createElement('div');d.textContent=s;return d.innerHTML};
+const clamp=v=>Math.max(0,Math.min(255,Math.round(v)));
+const fmtB=b=>{const u=['B','KB','MB','GB'];let i=0;while(b>=1024&&i<u.length-1){b/=1024;i++}return(b%1===0?b:b.toFixed(2))+' '+u[i]};
+const mkC=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+
+// ── Shared decode engine (Etappe 3): base64 (URL-safe/unpadded) + base32 + hex, recursive multi-scheme (≤5), whitespace/multi-line tolerant ──
+const B64_ALPHA=/^[A-Za-z0-9+/_=-]+$/;
+const stripWS=s=>s.replace(/\s+/g,'');
+function b64norm(s){s=stripWS(s).replace(/-/g,'+').replace(/_/g,'/').replace(/=+$/,'');const pad=s.length%4;if(pad===1)return null;if(pad)s+='='.repeat(4-pad);return s}
+function looksB64(s){s=stripWS(s);if(s.length<12)return false;if(!B64_ALPHA.test(s))return false;if(s.length%4===1&&!/[-_]/.test(s))return false;return true}
+const B32A='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function isB32(s){s=stripWS(s).toUpperCase().replace(/=+$/,'');if(s.length<8)return false;return /^[A-Z2-7]+$/.test(s)}
+function b32Decode(s){s=stripWS(s).toUpperCase().replace(/=+$/,'');if(!/^[A-Z2-7]+$/.test(s))return null;let bits=0,val=0,out='';for(const ch of s){const idx=B32A.indexOf(ch);if(idx<0)return null;val=(val<<5)|idx;bits+=5;if(bits>=8){bits-=8;out+=String.fromCharCode((val>>>bits)&0xff)}}return out}
+function isHex(s){s=stripWS(s);if(s.length<8||s.length%2!==0)return false;return /^[0-9a-fA-F]+$/.test(s)}
+function hexDecode(s){s=stripWS(s);if(s.length%2)return null;let out='';for(let i=0;i<s.length;i+=2){const b=parseInt(s.substr(i,2),16);if(isNaN(b))return null;out+=String.fromCharCode(b)}return out}
+function printableRatio(str){if(!str.length)return 0;let p=0;for(let i=0;i<str.length;i++){const c=str.charCodeAt(i);if(c===9||c===10||c===13||(c>=32&&c<127))p++}return p/str.length}
+function magicName(bin){const b=[];for(let i=0;i<Math.min(8,bin.length);i++)b.push(bin.charCodeAt(i)&0xff);const s=a=>a.every((v,i)=>b[i]===v);if(s([0x89,0x50,0x4E,0x47]))return'PNG';if(s([0xFF,0xD8,0xFF]))return'JPEG';if(s([0x47,0x49,0x46,0x38]))return'GIF';if(s([0x50,0x4B,0x03,0x04]))return'ZIP';if(s([0x25,0x50,0x44,0x46]))return'PDF';if(s([0x52,0x61,0x72,0x21]))return'RAR';if(s([0x1F,0x8B]))return'GZIP';if(s([0x42,0x4D]))return'BMP';if(s([0x7F,0x45,0x4C,0x46]))return'ELF';return null}
+const flagLike=dec=>/flag\{|ctf\{|pico|htb\{|key\{|[A-Za-z0-9_]{2,}\{[\x20-\x7e]{2,}\}/i.test(dec);
+function isInteresting(dec){if(flagLike(dec))return'flag';if(magicName(dec))return'file';if(printableRatio(dec)>=0.85&&dec.length>=6)return'text';return null}
+function decodeOnce(s){try{const n=b64norm(s);if(n===null)return null;return atob(n)}catch(e){return null}}
+function scoreDecode(dec){if(!dec||!dec.length)return 0;if(flagLike(dec))return 4;if(magicName(dec))return 3;const pr=printableRatio(dec);if(pr>=0.85&&dec.length>=6)return 2;if(pr>=0.6&&dec.length>=6)return 1;return 0}
+function decodeLayer(s){s=stripWS(s);const opts=[];if(isHex(s)){const d=hexDecode(s);if(d)opts.push({scheme:'hex',dec:d})}if(isB32(s)){const d=b32Decode(s);if(d)opts.push({scheme:'base32',dec:d})}if(looksB64(s)){const d=decodeOnce(s);if(d)opts.push({scheme:'base64',dec:d})}let best=null,bs=-1;for(const o of opts){const sc=scoreDecode(o.dec);if(sc>bs){bs=sc;best=o}}return(best&&bs>=2)?{scheme:best.scheme,dec:best.dec,score:bs}:null}
+function decodeChain(s,maxDepth=5){const steps=[];let cur=stripWS(s);for(let d=0;d<maxDepth;d++){const L=decodeLayer(cur);if(!L||L.dec===cur)break;const it=isInteresting(L.dec);steps.push({enc:cur,dec:L.dec,scheme:L.scheme,interest:it});if(it==='flag'||it==='file')break;const nxt=stripWS(L.dec);if(!(isHex(nxt)||isB32(nxt)||looksB64(nxt)))break;cur=nxt}return steps}
+function scanB64(text,cap=200){const cands=new Set();const re=/[A-Za-z0-9+/_=-]{12,}/g;let m;while((m=re.exec(text))!==null)cands.add(m[0]);const lines=text.split(/\r?\n/);let grp=[];const flush=()=>{if(grp.length>=2){for(const v of [grp,grp.slice(1),grp.slice(0,-1),grp.slice(1,-1)]){if(v.length>=2){const j=v.join('');if(j.length>=16)cands.add(j)}}}grp=[]};for(const ln of lines){const t=ln.trim();if(t.length>=2&&/^[A-Za-z0-9+/_=-]+$/.test(t))grp.push(t);else flush()}flush();const list=[...cands].sort((a,b)=>b.length-a.length).slice(0,cap);const hits=[],seen=new Set();for(const c of list){const steps=decodeChain(c,5);if(!steps.length)continue;const final=steps[steps.length-1].dec;const key=final.slice(0,200);if(seen.has(key))continue;seen.add(key);hits.push({raw:c,steps,final,layers:steps.length,interest:steps[steps.length-1].interest})}return hits}
+function b64chainHTML(hit,srcLabel){let s='<div class="b64box">';s+=`<p class="enc">Encoded${srcLabel?' ('+esc(srcLabel)+')':''}, ${hit.raw.length} chars: <code>${esc(hit.raw.slice(0,120))}${hit.raw.length>120?'…':''}</code></p>`;hit.steps.forEach((st,i)=>{const last=i===hit.steps.length-1;const scm=`<span class="scm">${esc(st.scheme)}</span>`;let tag='';if(last&&st.interest==='flag')tag=' <span class="tag">&#128681; flag-like</span>';else if(last&&st.interest==='file')tag=` <span class="tag">&#128196; ${esc(magicName(hit.final)||'file')}</span>`;const lbl=hit.steps.length>1?`Layer ${i+1}`:'Decoded';s+=`<p class="lyr">${lbl} ${scm}${tag}: <code>${esc(st.dec.slice(0,400))}${st.dec.length>400?'…':''}</code></p>`});if(hit.steps.length>1)s+=`<p class="meta">${hit.steps.length}-layer recursive decode (${hit.steps.map(x=>esc(x.scheme)).join(' → ')})</p>`;if(hit.interest==='file'){const magic=magicName(hit.final);const id='df'+(decodedFileSeq++);decodedFiles[id]=hit.final;const isImg=['PNG','JPEG','GIF','BMP'].includes(magic);s+=`<div class="b64act"><button class="b64btn" onclick="downloadDecoded('${id}')">&#11015; Download decoded ${esc(magic)} (${fmtB(hit.final.length)})</button>${isImg?`<button class="b64btn" onclick="reanalyzeDecoded('${id}')">&#128260; Analyze this ${esc(magic)}</button>`:''}</div>`}s+='</div>';return s}
+// decoded-file registry + actions (Etappe 3)
+const decodedFiles={};let decodedFileSeq=0;
+const DEC_EXT={PNG:'png',JPEG:'jpg',GIF:'gif',BMP:'bmp',ZIP:'zip',PDF:'pdf',RAR:'rar',GZIP:'gz',ELF:'bin'};
+function binToBytes(bin){const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i)&0xff;return u}
+function downloadDecoded(id){const bin=decodedFiles[id];if(bin==null)return;const magic=magicName(bin);const blob=new Blob([binToBytes(bin)]);const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='decoded.'+(DEC_EXT[magic]||'bin');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+function reanalyzeDecoded(id){const bin=decodedFiles[id];if(bin==null)return;const magic=magicName(bin);const f=new File([binToBytes(bin)],'decoded.'+(DEC_EXT[magic]||'bin'),{type:'image/'+((magic==='JPEG'?'jpeg':(magic||'png')).toLowerCase())});window.scrollTo({top:0,behavior:'smooth'});loadFile(f)}
+
+// ── Decoder Lab (Etappe 4): consolidated findings + manual workbench (paste/select → decode / XOR / ROT) ──
+let labFindings=[];
+const strictFlag=s=>/(flag|ctf|pico|htb|key)\w*\{/i.test(s);
+function xorStr(bin,key){let o='';for(let i=0;i<bin.length;i++)o+=String.fromCharCode(bin.charCodeAt(i)^key.charCodeAt(i%key.length));return o}
+function rotStr(s,n){return s.replace(/[a-z]/g,c=>String.fromCharCode((c.charCodeAt(0)-97+n)%26+97)).replace(/[A-Z]/g,c=>String.fromCharCode((c.charCodeAt(0)-65+n)%26+65))}
+const labIn=()=>document.getElementById('lab-in').value;
+const labOut=html=>{document.getElementById('lab-out').innerHTML=html};
+const labEsc=s=>esc(s.length>2000?s.slice(0,2000)+'…':s);
+function labAutoDecode(){const t=labIn();if(!t.trim()){labOut('<p class="desc">Paste or type something first.</p>');return}let hits=scanB64(t);if(!hits.length){const s=stripWS(t);const steps=decodeChain(s);if(steps.length)hits=[{raw:s,steps,final:steps[steps.length-1].dec,layers:steps.length,interest:steps[steps.length-1].interest}]}labOut(hits.length?hits.map(h=>b64chainHTML(h)).join(''):'<p class="desc">Nothing decoded as base64 / base32 / hex. Try XOR or ROT below.</p>')}
+function labXORkey(){const t=labIn();const raw=document.getElementById('lab-key').value;if(!t||!raw){labOut('<p class="desc">Need both input and a key.</p>');return}let k=raw;if(document.getElementById('lab-key-hex').checked){k=hexDecode(raw.replace(/\s+/g,''));if(k==null){labOut('<p class="desc">Key is not valid hex.</p>');return}}if(!k.length){labOut('<p class="desc">Empty key.</p>');return}const r=xorStr(t,k);labOut(`<div class="b64box"><p class="lyr">XOR &times; "${esc(raw)}"${strictFlag(r)?' <span class="tag">&#128681; flag-like</span>':''}: <code>${labEsc(r)}</code></p></div>`)}
+function labXORbrute(){const t=labIn();if(!t.trim()){labOut('<p class="desc">Paste input first.</p>');return}const rows=[];for(let k=1;k<256;k++){const r=xorStr(t,String.fromCharCode(k));rows.push({k,r,f:strictFlag(r),p:printableRatio(r)})}rows.sort((a,b)=>(b.f-a.f)||(b.p-a.p));let show=rows.filter(r=>r.f||r.p>=0.85);if(!show.length)show=rows.slice(0,8);show=show.slice(0,15);labOut('<p class="desc">Single-byte XOR — top candidates (flag-like first):</p>'+show.map(r=>`<div class="b64box"><p class="lyr">key 0x${r.k.toString(16).padStart(2,'0')} (${r.k})${r.f?' <span class="tag">&#128681;</span>':''}: <code>${labEsc(r.r)}</code></p></div>`).join(''))}
+function labROT(){const t=labIn();if(!t.trim()){labOut('<p class="desc">Paste input first.</p>');return}const rows=[];for(let n=1;n<=25;n++){const r=rotStr(t,n);rows.push({n,r,f:strictFlag(r)})}const flagged=rows.filter(r=>r.f);const show=flagged.length?flagged:rows;labOut((flagged.length?'<p class="desc">&#128681; ROT / Caesar shift(s) that recover a flag:</p>':'<p class="desc">All 25 ROT / Caesar shifts:</p>')+show.map(r=>`<div class="b64box"><p class="lyr">ROT${r.n}${r.f?' <span class="tag">&#128681;</span>':''}: <code>${labEsc(r.r)}</code></p></div>`).join(''))}
+function labDecodeSelection(){const sel=window.getSelection?window.getSelection().toString():'';if(!sel.trim()){labOut('<p class="desc">Highlight some text anywhere on the page first, then click this.</p>');return}document.getElementById('lab-in').value=sel;labAutoDecode()}
+function labClear(){document.getElementById('lab-in').value='';labOut('')}
+function doDecoderLab(el){let h='';const uniq=[],seen=new Set();for(const f of labFindings){const key=(f.final||'').slice(0,200);if(seen.has(key))continue;seen.add(key);uniq.push(f)}if(uniq.length){h+=`<h3 style="color:var(--yellow)">&#128269; All encoded findings from this image, consolidated (${uniq.length})</h3>`;h+=uniq.map(f=>b64chainHTML(f,f.src)).join('')}else h+=`<p class="desc">No encoded data was auto-found in the modules above — use the manual workbench below.</p>`;h+=`<h3 style="color:var(--green)">&#129514; Manual workbench</h3><p class="desc">Paste or type anything — or highlight text anywhere on the page and hit &laquo;Decode selection&raquo; — then decode or brute it. Runs entirely in your browser.</p>`;h+=`<textarea id="lab-in" class="lab-ta" spellcheck="false" placeholder="Paste base64 / base32 / hex / ciphertext here…"></textarea>`;h+=`<div class="lab-row"><button class="b64btn" onclick="labAutoDecode()">Auto-decode (b64/b32/hex, recursive)</button><button class="b64btn" onclick="labDecodeSelection()">Decode selection</button><button class="b64btn" onclick="labROT()">ROT / Caesar brute</button><button class="b64btn" onclick="labXORbrute()">XOR brute (1-byte)</button><button class="b64btn" onclick="labClear()">Clear</button></div>`;h+=`<div class="lab-row"><input id="lab-key" class="lab-key" spellcheck="false" placeholder="XOR key"><label class="lab-hex"><input type="checkbox" id="lab-key-hex"> hex key</label><button class="b64btn" onclick="labXORkey()">XOR with key</button></div>`;h+=`<div id="lab-out"></div>`;el.innerHTML=h}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const dz=document.getElementById('drop-zone'),fi=document.getElementById('file-input');
+  console.log('StegAnalyzer v3.7.0 loaded. Drop-zone ready.');
+  dz.addEventListener('click',e=>{
+    if(e.target===fi){e.stopPropagation();return}
+    if(e.target===dz||e.target.tagName==='P'){console.log('Drop-zone clicked');fi.click()}
+  });
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');console.log('File dropped:',e.dataTransfer.files[0]?.name);if(e.dataTransfer.files.length)loadFile(e.dataTransfer.files[0])});
+  fi.addEventListener('change',()=>{console.log('File selected:',fi.files[0]?.name);if(fi.files.length)loadFile(fi.files[0])});
+  document.getElementById('modal').addEventListener('click',()=>document.getElementById('modal').classList.remove('show'));
+});
+
+function loadFile(f){
+  fileName=f.name;fileType=f.type;encodedLayerInfo=null;
+  const r=new FileReader();r.onload=e=>{fileBuffer=e.target.result;fileBytes=new Uint8Array(fileBuffer);loadImg()};r.readAsArrayBuffer(f);
+}
+function loadImg(){
+  const url=URL.createObjectURL(new Blob([fileBuffer]));
+  const img=new Image();img.onload=()=>{
+    origImage=img;imgW=img.naturalWidth;imgH=img.naturalHeight;
+    const c=mkC(imgW,imgH);c.getContext('2d').drawImage(img,0,0);
+    imgData=c.getContext('2d').getImageData(0,0,imgW,imgH);
+    document.getElementById('upload-card').classList.add('collapsed');
+    document.getElementById('file-badge').innerHTML=`<span class="hl">${esc(fileName)}</span> — ${imgW}×${imgH} — ${fmtB(fileBytes.length)}`;
+    URL.revokeObjectURL(url);runAll();
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);handleNonImage()};
+  img.src=url;
+}
+// ---- Encoded-layer decode (B): binær/hex/base64-tekst som skjuler en fil ----
+function asciiText(bytes){
+  if(bytes.length>10485760)return null;
+  const n=Math.min(bytes.length,200000);
+  for(let i=0;i<n;i++){const b=bytes[i];if(!(b===9||b===10||b===13||b===32||(b>=33&&b<=126)))return null;}
+  let s='';for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return s;
+}
+function decodeEncodedLayer(bytes){
+  const text=asciiText(bytes);if(text===null)return null;
+  const t=text.replace(/\s+/g,'');if(t.length===0)return null;
+  if(/^[01]+$/.test(t)&&t.length>=16){const n=t.length-(t.length%8);const out=new Uint8Array(n/8);for(let i=0;i<n;i+=8)out[i/8]=parseInt(t.slice(i,i+8),2);return{bytes:out,encoding:'binary'};}
+  if(/^[0-9a-fA-F]+$/.test(t)&&t.length>=8&&t.length%2===0){const out=new Uint8Array(t.length/2);for(let i=0;i<t.length;i+=2)out[i/2]=parseInt(t.slice(i,i+2),16);return{bytes:out,encoding:'hex'};}
+  if(/^[A-Za-z0-9+/]+={0,2}$/.test(t)&&t.length>=8&&t.length%4===0){try{const bin=atob(t);const out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return{bytes:out,encoding:'base64'};}catch(e){}}
+  return null;
+}
+function detectMagicOf(b){
+  const hx=(...v)=>b.length>=v.length&&v.every((val,i)=>b[i]===val);
+  if(hx(0xFF,0xD8,0xFF))return{type:'JPEG',ext:'jpg',image:true};
+  if(hx(0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A))return{type:'PNG',ext:'png',image:true};
+  if(hx(0x47,0x49,0x46,0x38,0x37,0x61)||hx(0x47,0x49,0x46,0x38,0x39,0x61))return{type:'GIF',ext:'gif',image:true};
+  if(hx(0x42,0x4D))return{type:'BMP',ext:'bmp',image:true};
+  if(hx(0x52,0x49,0x46,0x46)&&b[8]===0x57&&b[9]===0x45&&b[10]===0x42&&b[11]===0x50)return{type:'WEBP',ext:'webp',image:true};
+  if(hx(0x25,0x50,0x44,0x46))return{type:'PDF',ext:'pdf',image:false};
+  if(hx(0x50,0x4B,0x03,0x04))return{type:'ZIP',ext:'zip',image:false};
+  if(hx(0x7F,0x45,0x4C,0x46))return{type:'ELF',ext:'elf',image:false};
+  if(hx(0x1F,0x8B))return{type:'GZIP',ext:'gz',image:false};
+  if(hx(0x52,0x61,0x72,0x21,0x1A,0x07))return{type:'RAR',ext:'rar',image:false};
+  return{type:'unknown',ext:'bin',image:false};
+}
+function decName(name,ext){return (name.replace(/\.[^.]+$/,'')||'file')+'.decoded.'+ext;}
+function encCmd(enc){
+  const f=esc(fileName);
+  if(enc==='binary')return `<span class="comment"># binary text \u2192 bytes</span>\n<span class="prompt">$</span> cat ${f} | perl -lpe '$_=pack "B*",$_' > decoded.bin\n<span class="prompt">$</span> file decoded.bin\n<span class="comment"># CyberChef: From Binary \u2192 Render Image</span>`;
+  if(enc==='hex')return `<span class="prompt">$</span> xxd -r -p ${f} > decoded.bin\n<span class="prompt">$</span> file decoded.bin`;
+  return `<span class="prompt">$</span> base64 -d ${f} > decoded.bin\n<span class="prompt">$</span> file decoded.bin`;
+}
+function tryEncodedLayer(){
+  if(encodedLayerInfo){showNonImageError();return;}
+  const dec=decodeEncodedLayer(fileBytes);
+  if(!dec){showNonImageError();return;}
+  const magic=detectMagicOf(dec.bytes);
+  if(magic.image){
+    encodedLayerInfo={encoding:dec.encoding,origName:fileName,origChars:fileBytes.length,decodedBytes:dec.bytes.length,type:magic.type};
+    fileBuffer=dec.bytes.buffer;fileBytes=dec.bytes;fileName=decName(fileName,magic.ext);
+    loadImg();
+  }else if(magic.type!=='unknown'||dec.encoding==='binary'){
+    showDecodedNonImage(dec,magic);
+  }else{
+    showNonImageError();
+  }
+}
+function showDecodedNonImage(dec,magic){
+  document.getElementById('upload-card').classList.add('collapsed');
+  document.getElementById('file-badge').innerHTML=`<span class="hl">${esc(fileName)}</span> \u2014 ${dec.encoding} \u2192 ${magic.type} \u2014 ${fmtB(dec.bytes.length)}`;
+  const url=URL.createObjectURL(new Blob([dec.bytes]));const dn=decName(fileName,magic.ext);
+  document.getElementById('results').innerHTML=`<div class="card visible"><h2>&#129513; Encoded Layer Decoded</h2><div class="cmd-box"><span class="cmd-label">CLI</span><code>${encCmd(dec.encoding)}</code></div><p class="desc">Fila var <span class="hl">${dec.encoding}</span>-tekst (${fileBytes.length.toLocaleString()} tegn) \u2192 dekodet til <span class="hl">${magic.type}</span> (${fmtB(dec.bytes.length)}). Ikke et bilde, s\u00e5 bilde-modulene kj\u00f8res ikke \u2014 last ned og analyser videre.</p><a href="${url}" download="${esc(dn)}" style="display:inline-block;margin-top:8px;padding:8px 14px;background:var(--green);color:#000;border-radius:4px;text-decoration:none;font-weight:600">&#11015; Last ned ${esc(dn)}</a></div>`;
+}
+function showNonImageError(){
+  document.getElementById('upload-card').classList.add('collapsed');
+  document.getElementById('file-badge').innerHTML=`<span class="hl">${esc(fileName)}</span> \u2014 ${fmtB(fileBytes.length)} \u2014 ikke et bilde`;
+  document.getElementById('results').innerHTML=`<div class="card visible"><h2>Ikke et bilde</h2><p class="desc">Denne fila er ikke et bilde nettleseren kan rendre, og jeg fant ingen enkelt kodings-lag (bin\u00e6r/hex/base64) \u00e5 skrelle.</p><p class="desc">Backend-verkt\u00f8yene (binwalk/foremost) kan fortsatt finne noe \u2014 se <span class="hl">Backend-verkt\u00f8y</span>-panelet lenger ned.</p></div>`;
+}
+function doEncLayer(el){
+  if(encodedLayerInfo){const i=encodedLayerInfo;el.innerHTML=`<p class="desc"><span class="hl">${esc(i.origName)}</span> var <span class="hl">${i.encoding}</span>-tekst (${i.origChars.toLocaleString()} tegn) \u2192 dekodet til <span class="hl">${i.type}</span> (${fmtB(i.decodedBytes)}). Alle modulene under kj\u00f8rer p\u00e5 det dekodede bildet \u2014 OCR-modulen leser flagget om det st\u00e5r malt i bildet.</p>`;}
+  else{el.innerHTML=`<p class="desc">Fila er et bilde direkte \u2014 ingen kodings-lag \u00e5 skrelle.</p>`;}
+}
+// ---- PDF-metadata (klientside, lett) ----
+function isPDF(b){ return b[0]===0x25&&b[1]===0x50&&b[2]===0x44&&b[3]===0x46; }
+function pdfUnescape(s){
+  return s.replace(/\\([0-7]{1,3}|.)/g,(m,g)=>{
+    if(/^[0-7]{1,3}$/.test(g))return String.fromCharCode(parseInt(g,8));
+    const map={n:'\n',r:'\r',t:'\t',b:'\b',f:'\f','(':'(',')':')','\\':'\\'};
+    return map[g]!==undefined?map[g]:g;
+  });
+}
+function pdfMetadata(bytes){
+  let s=''; for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);
+  const fields=['Author','Title','Subject','Keywords','Creator','Producer','CreationDate','ModDate'];
+  const out=[];
+  for(const f of fields){
+    let m=s.match(new RegExp('/'+f+'\\s*\\(((?:\\\\.|[^\\\\()])*)\\)'));
+    if(m){ out.push({field:f,value:pdfUnescape(m[1])}); continue; }
+    m=s.match(new RegExp('/'+f+'\\s*<([0-9A-Fa-f\\s]+)>'));
+    if(m){ const hex=m[1].replace(/\s/g,''); let v=''; for(let i=0;i<hex.length;i+=2)v+=String.fromCharCode(parseInt(hex.slice(i,i+2),16)); out.push({field:f,value:v}); }
+  }
+  return out;
+}
+function isPrintable(s){ let p=0; for(let i=0;i<s.length;i++){const c=s.charCodeAt(i); if(c===9||c===10||c===13||(c>=32&&c<=126))p++;} return s.length>0 && p/s.length>0.9; }
+function tryDecodeStr(str){
+  const t=str.trim(); if(t.length<4)return null;
+  if(/^[0-9a-fA-F]+$/.test(t)&&t.length%2===0&&t.length>=8){ let d=''; for(let i=0;i<t.length;i+=2)d+=String.fromCharCode(parseInt(t.slice(i,i+2),16)); if(isPrintable(d))return{method:'hex',decoded:d}; }
+  if(/^[A-Za-z0-9+/]+={0,2}$/.test(t)&&t.length%4===0){ try{ const d=atob(t); if(isPrintable(d))return{method:'base64',decoded:d}; }catch(e){} }
+  if(/^[01]+$/.test(t)&&t.length>=16){ const n=t.length-t.length%8; let d=''; for(let i=0;i<n;i+=8)d+=String.fromCharCode(parseInt(t.slice(i,i+8),2)); if(isPrintable(d))return{method:'binær',decoded:d}; }
+  return null;
+}
+// Auto-dekod OCR-tekst: prover hele teksten OG hex-kjorer innleiret i stoy (travelt bilde med bakgrunnstekst)
+function ocrAutoDecode(text){
+  if(!text) return null;
+  const flagish=/[A-Za-z0-9_]{2,}\{[^{}]{2,}\}/;
+  const cands=[ text.replace(/\s+/g,'') ];
+  const runs=text.match(/[0-9a-fA-F]{2,}(?:\s+[0-9a-fA-F]{2,})*/g)||[];
+  for(const r of runs){ const h=r.replace(/\s+/g,''); if(h.length>=16 && h.length%2===0) cands.push(h); }
+  let fallback=null;
+  for(const c of cands){ const d=tryDecodeStr(c); if(d){ if(flagish.test(d.decoded)) return d; if(!fallback) fallback=d; } }
+  return fallback;
+}
+function showPdfMetadata(){
+  document.getElementById('upload-card').classList.add('collapsed');
+  document.getElementById('file-badge').innerHTML=`<span class="hl">${esc(fileName)}</span> — PDF — ${fmtB(fileBytes.length)}`;
+  const meta=pdfMetadata(fileBytes);
+  const FLAGP=/[A-Za-z0-9_]{2,}\{[^{}]{2,}\}/;
+  let h=`<div class="card visible"><h2>📄 PDF Metadata</h2><div class="cmd-box"><span class="cmd-label">CLI</span><code><span class="prompt">$</span> pdfinfo ${esc(fileName)}\n<span class="prompt">$</span> exiftool ${esc(fileName)}\n<span class="comment"># dekod base64-felt:  ... | base64 -d</span></code></div>`;
+  if(!meta.length){
+    h+=`<p class="desc">Fant ingen standard /Info-metadatafelter. Prøv backend-verktøyene (binwalk/foremost) for dypere skanning.</p>`;
+  }else{
+    for(const m of meta){
+      h+=`<div style="margin:10px 0;border-top:1px solid #222;padding-top:8px"><b>${esc(m.field)}</b><pre style="white-space:pre-wrap;word-break:break-all;margin:.3rem 0">${esc(m.value)}</pre>`;
+      const dec=tryDecodeStr(m.value);
+      if(dec){
+        const flag=dec.decoded.match(FLAGP);
+        h+=`<div style="opacity:.7;font-size:.82rem;margin-top:4px">→ dekodet (${dec.method}):</div>`;
+        if(flag){
+          h+=`<div style="background:var(--bg2);border:1px solid var(--green);border-radius:4px;padding:8px 10px;margin:4px 0"><span style="color:var(--yellow)">🚩 Flagg</span><br><code style="color:var(--green);font-size:1rem;word-break:break-all">${esc(flag[0])}</code></div>`;
+        }else{
+          h+=`<pre style="white-space:pre-wrap;word-break:break-all;color:var(--green);margin:.2rem 0">${esc(dec.decoded)}</pre>`;
+        }
+      }
+      h+='</div>';
+    }
+  }
+  h+=`<p class="desc" style="opacity:.65;font-size:.78rem;margin-top:8px">Tung PDF-carving (skjulte filer/streams) dekkes av backend-verktøyene binwalk/foremost.</p></div>`;
+  document.getElementById('results').innerHTML=h;
+}
+// ---- Korrupt-header-deteksjon + reparasjon (B) ----
+function findBytes(hay,needle,start,end){ start=start||0; end=(end===undefined?hay.length:end);
+  outer: for(let i=start;i<=end-needle.length;i++){ for(let j=0;j<needle.length;j++) if(hay[i+j]!==needle[j]) continue outer; return i; } return -1; }
+function startsWithB(hay,pat){ if(hay.length<pat.length)return false; for(let i=0;i<pat.length;i++) if(hay[i]!==pat[i])return false; return true; }
+// Kjenner igjen typen selv om magic-bytene er ødelagt, via en kropps-markør som overlever header-korrupsjon
+function detectCorruptedHeader(b){
+  if(!b||b.length<12) return null;
+  const JFIF=[0x4A,0x46,0x49,0x46], Exif=[0x45,0x78,0x69,0x66];
+  if(!startsWithB(b,[0xFF,0xD8]) && (findBytes(b,JFIF,0,20)>=0 || findBytes(b,Exif,0,20)>=0))
+    return {type:'JPEG',ext:'jpg',magic:[0xFF,0xD8],marker:'JFIF/Exif-segment',note:'JPEG-markøren FF D8 (SOI) er borte, men JFIF/Exif-segmentet er intakt.'};
+  const PNG=[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A];
+  if(!startsWithB(b,PNG) && (findBytes(b,[0x49,0x48,0x44,0x52],0,64)>=0 || findBytes(b,[0x49,0x44,0x41,0x54])>=0 || findBytes(b,[0x49,0x45,0x4E,0x44])>=0))
+    return {type:'PNG',ext:'png',magic:PNG,marker:'IHDR/IDAT/IEND-chunk',note:'PNG-signaturen er ødelagt, men PNG-chunker (IHDR/IDAT/IEND) finnes i fila.'};
+  if(!startsWithB(b,[0x47,0x49,0x46]) && b[3]===0x38 && (b[4]===0x39||b[4]===0x37) && b[5]===0x61)
+    return {type:'GIF',ext:'gif',magic:[0x47,0x49,0x46,0x38,b[4],0x61],marker:'GIF8'+(b[4]===0x39?'9':'7')+'a-mønster (byte 3-5)',note:'GIF-signaturen ser ødelagt ut — byte 3-5 antyder GIF8'+(b[4]===0x39?'9':'7')+'a.'};
+  if(!startsWithB(b,[0x50,0x4B,0x03,0x04]) && (findBytes(b,[0x50,0x4B,0x01,0x02])>=0 || findBytes(b,[0x50,0x4B,0x05,0x06])>=0))
+    return {type:'ZIP',ext:'zip',magic:[0x50,0x4B,0x03,0x04],marker:'PK sentral katalog / EOCD',note:'ZIP lokal-header (PK 03 04) er borte, men sentral-katalog-poster finnes.'};
+  if(!startsWithB(b,[0x25,0x50,0x44,0x46]) && (findBytes(b,[0x65,0x6E,0x64,0x6F,0x62,0x6A])>=0 || findBytes(b,[0x78,0x72,0x65,0x66])>=0))
+    return {type:'PDF',ext:'pdf',magic:[0x25,0x50,0x44,0x46],marker:'PDF-struktur (endobj/xref)',note:'%PDF-headeren er borte, men PDF-struktur (endobj/xref) finnes.'};
+  return null;
+}
+let repairSig=null;
+function repairNow(){
+  if(!repairSig) return;
+  const out=new Uint8Array(fileBytes);
+  for(let i=0;i<repairSig.magic.length;i++) out[i]=repairSig.magic[i];
+  fileBytes=out; fileBuffer=out.buffer; fileName='(reparert) '+fileName; encodedLayerInfo=null; repairSig=null;
+  loadImg();
+}
+function showRepairPanel(sig){
+  repairSig=sig;
+  document.getElementById('upload-card').classList.add('collapsed');
+  document.getElementById('file-badge').innerHTML=`<span class="hl">${esc(fileName)}</span> &mdash; ${fmtB(fileBytes.length)} &mdash; <span style="color:var(--red)">korrupt ${sig.type}-header</span>`;
+  const n=Math.min(16,fileBytes.length); let cur='',exp='',asc='';
+  for(let i=0;i<n;i++){
+    const cv=fileBytes[i].toString(16).toUpperCase().padStart(2,'0');
+    asc+=(fileBytes[i]>=32&&fileBytes[i]<=126)?String.fromCharCode(fileBytes[i]):'.';
+    if(i<sig.magic.length){
+      const ev=sig.magic[i].toString(16).toUpperCase().padStart(2,'0'), ok=fileBytes[i]===sig.magic[i];
+      cur+=`<span style="color:${ok?'var(--green)':'var(--red)'}">${cv}</span> `;
+      exp+=`<span style="color:var(--green)">${ev}</span> `;
+    } else { cur+=`<span style="opacity:.55">${cv}</span> `; exp+=`<span style="opacity:.35">&middot;&middot;</span> `; }
+  }
+  const lbl='display:inline-block;width:88px;opacity:.7';
+  document.getElementById('results').innerHTML=
+    `<div class="card visible"><h2>&#128295; Korrupt fil oppdaget &mdash; ${sig.type}</h2>`+
+    `<p class="desc">${sig.note} Kjennes igjen på <span class="hl">${sig.marker}</span>. Nettleseren kan ikke rendre fila før magic-bytene er riktige &mdash; derfor kjørte ingen moduler.</p>`+
+    `<div class="cmd-box" style="white-space:normal">`+
+      `<div style="margin:3px 0"><span style="${lbl};color:var(--red)">nå:</span>${cur}</div>`+
+      `<div style="margin:3px 0"><span style="${lbl};color:var(--green)">skal være:</span>${exp}</div>`+
+      `<div style="margin:3px 0"><span style="${lbl}">ascii:</span><span style="opacity:.7">${esc(asc)}</span></div>`+
+    `</div>`+
+    `<button onclick="repairNow()" style="margin-top:12px;padding:9px 16px;background:var(--green);color:#000;border:none;border-radius:4px;font-weight:600;cursor:pointer;font-family:var(--font)">&#128295; Reparer header og analyser på nytt</button>`+
+    `<p class="desc" style="margin-top:10px;opacity:.8;font-size:.85rem">Retter de første ${sig.magic.length} bytene til riktig ${sig.type}-signatur og kjører hele analysen på den reparerte fila. Dekker header-korrupsjon &mdash; dypere skade (chunk-lengder osv.) trenger en hex-editor som hexed.it.</p>`+
+    `</div>`;
+}
+function showLoadError(e){
+  document.getElementById('upload-card').classList.add('collapsed');
+  document.getElementById('file-badge').innerHTML=`<span class="hl">${esc(fileName)}</span> &mdash; ${fmtB(fileBytes?fileBytes.length:0)} &mdash; <span style="color:var(--red)">kunne ikke analyseres</span>`;
+  document.getElementById('results').innerHTML=`<div class="card visible"><h2>Kunne ikke analysere fila</h2><p class="desc">Fila lot seg verken rendre som bilde eller tolke som en kjent type, og et uventet problem oppsto under analysen &mdash; men verktøyet krasjer ikke lenger. Backend-verktøyene (binwalk/foremost) kan fortsatt finne noe.</p><p class="desc" style="opacity:.65;font-size:.8rem">Detalj: ${esc(String(e&&e.message||e))}</p></div>`;
+}
+function handleNonImage(){
+  try{
+    if(isPDF(fileBytes)){ showPdfMetadata(); return; }
+    const sig=detectCorruptedHeader(fileBytes);
+    if(sig){ showRepairPanel(sig); return; }
+    tryEncodedLayer();
+  }catch(e){ showLoadError(e); }
+}
+
+function showModal(src){const mc=document.getElementById('modal-canvas');mc.width=src.width;mc.height=src.height;mc.getContext('2d').drawImage(src,0,0);document.getElementById('modal').classList.add('show')}
+function addCell(grid,canvas,label){
+  const maxT=400;const sc=Math.min(maxT/canvas.width,maxT/canvas.height,1);
+  const tw=Math.round(canvas.width*sc),th=Math.round(canvas.height*sc);
+  const thumb=mkC(tw,th);const tx=thumb.getContext('2d');tx.imageSmoothingEnabled=true;tx.imageSmoothingQuality='medium';
+  tx.drawImage(canvas,0,0,tw,th);
+  const cell=document.createElement('div');cell.className='cell';cell.appendChild(thumb);
+  const lbl=document.createElement('div');lbl.className='label';lbl.textContent=label;cell.appendChild(lbl);
+  const fullRes=canvas;// keep reference to full-res
+  cell.onclick=()=>showModal(fullRes);grid.appendChild(cell);
+}
+
+// ========== PROGRESSIVE ANALYSIS ==========
+const steps=[
+  {id:'enclayer',name:'Encoded Layer 🆕',w:1,fn:doEncLayer,
+   cmd:'<span class="comment"># hvis fila er binær/hex/base64-tekst som skjuler en annen fil:</span>\n<span class="prompt">$</span> file flag.png\n<span class="comment"># CyberChef: From Binary/Hex/Base64 → Render Image</span>'},
+  {id:'overview',name:'File Information',w:1,fn:doOverview,
+   cmd:'<span class="prompt">$</span> file flag.png\n<span class="prompt">$</span> identify flag.png\n<span class="prompt">$</span> wc -c flag.png'},
+  {id:'metadata',name:'Metadata / EXIF',w:1,fn:doMetadata,
+   cmd:'<span class="prompt">$</span> exiftool flag.png\n<span class="prompt">$</span> exiftool -a -u -g1 flag.png  <span class="comment"># all tags, grouped</span>\n<span class="prompt">$</span> exiv2 flag.png'},
+  {id:'structure',name:'File Structure',w:1,fn:doStructure,
+   cmd:'<span class="prompt">$</span> pngcheck -v flag.png  <span class="comment"># PNG chunk analysis</span>\n<span class="prompt">$</span> python3 PCRT.py -v -i flag.png  <span class="comment"># PNG CRC repair</span>\n<span class="prompt">$</span> jpeginfo -c flag.jpg  <span class="comment"># JPEG structure</span>'},
+  {id:'embedded',name:'Embedded File Scan (binwalk-style)',w:2,fn:doEmbedded,
+   cmd:'<span class="prompt">$</span> binwalk flag.png\n<span class="prompt">$</span> binwalk -e flag.png  <span class="comment"># extract embedded files</span>\n<span class="prompt">$</span> foremost -i flag.png -o output/\n<span class="prompt">$</span> dd if=flag.png bs=1 skip=12345 of=hidden.zip  <span class="comment"># manual extract at offset</span>'},
+  {id:'strings',name:'Strings Extraction',w:2,fn:doStrings,
+   cmd:'<span class="prompt">$</span> strings flag.png\n<span class="prompt">$</span> strings -n 8 flag.png  <span class="comment"># min 8 chars</span>\n<span class="prompt">$</span> strings -e l flag.png  <span class="comment"># UTF-16 LE</span>\n<span class="prompt">$</span> strings flag.png | grep -i flag  <span class="comment"># search for flag</span>\n<span class="prompt">$</span> strings flag.png | base64 -d  <span class="comment"># pipe to base64 decode</span>'},
+  {id:'hex',name:'Hex Dump',w:1,fn:doHex,
+   cmd:'<span class="prompt">$</span> xxd flag.png | head -32\n<span class="prompt">$</span> xxd flag.png | tail -16\n<span class="prompt">$</span> hexdump -C flag.png | head\n<span class="prompt">$</span> hexedit flag.png  <span class="comment"># interactive hex editor</span>'},
+  {id:'channels',name:'Channel Decomposition',w:3,fn:doChannels,
+   cmd:'<span class="comment"># Python + Pillow</span>\n<span class="prompt">$</span> python3 -c "from PIL import Image; img=Image.open(\'flag.png\'); img.split()[0].save(\'red.png\')"  <span class="comment"># Red</span>\n<span class="prompt">$</span> python3 -c "from PIL import Image; img=Image.open(\'flag.png\'); img.split()[1].save(\'green.png\')"  <span class="comment"># Green</span>\n<span class="prompt">$</span> python3 -c "from PIL import Image; img=Image.open(\'flag.png\'); img.split()[2].save(\'blue.png\')"  <span class="comment"># Blue</span>\n<span class="comment"># Or use: java -jar Stegsolve.jar</span>'},
+  {id:'remap',name:'Color Remapping',w:3,fn:doRemap,
+   cmd:'<span class="comment"># Stegsolve: Analyse → Random Colour Map</span>\n<span class="prompt">$</span> python3 -c "\nfrom PIL import Image; import random\nimg=Image.open(\'flag.png\'); px=img.load()\nm={}\nfor y in range(img.height):\n  for x in range(img.width):\n    c=px[x,y][:3]\n    if c not in m: m[c]=(random.randint(0,255),random.randint(0,255),random.randint(0,255))\n    px[x,y]=m[c]\nimg.save(\'remap.png\')"'},
+  {id:'histogram',name:'Histogram Analysis',w:2,fn:doHistogram,
+   cmd:'<span class="prompt">$</span> convert flag.png -define histogram:unique-colors=true histogram:hist.png\n<span class="prompt">$</span> python3 -c "from PIL import Image; import matplotlib.pyplot as plt; img=Image.open(\'flag.png\'); plt.hist(list(img.getdata()), bins=256); plt.show()"'},
+  {id:'filters',name:'Auto Filters (Invert, Edge, XOR, Threshold)',w:4,fn:doFilters,
+   cmd:'<span class="prompt">$</span> convert flag.png -negate inverted.png\n<span class="prompt">$</span> convert flag.png -colorspace Gray gray.png\n<span class="prompt">$</span> convert flag.png -edge 1 edge.png\n<span class="prompt">$</span> convert flag.png -threshold 50% bw.png\n<span class="comment"># Stegsolve: use arrow buttons to cycle through filters</span>'},
+  {id:'xor_single',name:'XOR Channel Operations',w:3,fn:doXORSingle,
+   cmd:'<span class="comment"># Python + PIL - XOR channels within same image</span>\n<span class="prompt">$</span> python3 xor_channels.py  <span class="comment"># R XOR G, R XOR B, G XOR B, R XOR G XOR B</span>\n<span class="comment"># Or use Stegsolve: Analyse → Data Extract → XOR operations</span>'},
+  {id:'bitplanes',name:'Bit Plane Analysis (32 planes)',w:6,fn:doBitPlanes,
+   cmd:'<span class="comment"># Stegsolve: File → Open, then use &lt; &gt; arrows</span>\n<span class="comment"># Red plane 0 = LSB, Red plane 7 = MSB, etc.</span>\n<span class="prompt">$</span> java -jar Stegsolve.jar\n<span class="prompt">$</span> python3 -c "\nfrom PIL import Image\nimg=Image.open(\'flag.png\')\nfor ch in range(3):\n  for bit in range(8):\n    out=Image.new(\'L\',(img.width,img.height))\n    px=img.load(); op=out.load()\n    for y in range(img.height):\n      for x in range(img.width):\n        op[x,y]=255 if (px[x,y][ch]>>bit)&1 else 0\n    out.save(f\'ch{ch}_bit{bit}.png\')"'},
+  {id:'lsb',name:'LSB + Brute Force + Base64 Decode',w:5,fn:doLSB,
+   cmd:'<span class="prompt">$</span> zsteg flag.png  <span class="comment"># auto-detect LSB stego in PNG/BMP</span>\n<span class="prompt">$</span> zsteg flag.png -a  <span class="comment"># try ALL combinations</span>\n<span class="prompt">$</span> zsteg flag.png -E "1b,rgb,lsb"  <span class="comment"># extract specific config</span>\n<span class="prompt">$</span> steghide extract -sf flag.jpg -p "password"  <span class="comment"># JPEG/BMP with password</span>\n<span class="prompt">$</span> steghide extract -sf flag.jpg -p ""  <span class="comment"># try empty password</span>\n<span class="prompt">$</span> outguess -r flag.jpg output.txt\n<span class="prompt">$</span> openstego extract -sf flag.png -xf output.txt\n<span class="prompt">$</span> stegcracker flag.jpg /usr/share/wordlists/rockyou.txt  <span class="comment"># brute force</span>\n<span class="prompt">$</span> stegbrute -f flag.jpg -w rockyou.txt'},
+  {id:'lsb_custom',name:'LSB Custom Patterns',w:4,fn:doLSBCustom,
+   cmd:'<span class="comment"># Custom pixel ordering patterns: row-first, column-first, spiral, zigzag</span>\n<span class="prompt">$</span> python3 lsb_patterns.py  <span class="comment"># Extract LSB with custom patterns</span>\n<span class="comment"># Each pattern reads pixels in different order to find hidden data</span>'},
+  {id:'entropy',name:'Visual Entropy Map',w:4,fn:doEntropy,
+   cmd:'<span class="prompt">$</span> ent flag.png  <span class="comment"># calculate file entropy</span>\n<span class="prompt">$</span> binwalk -E flag.png  <span class="comment"># entropy graph</span>\n<span class="prompt">$</span> binwalk -E --save flag.png  <span class="comment"># save entropy plot</span>'},
+  {id:'qr',name:'QR / Pattern Detection',w:3,fn:doQR,
+   cmd:'<span class="prompt">$</span> zbarimg flag.png  <span class="comment"># decode QR / barcode</span>\n<span class="prompt">$</span> zbarimg --raw flag.png\n<span class="prompt">$</span> python3 -c "from pyzbar.pyzbar import decode; from PIL import Image; print(decode(Image.open(\'flag.png\')))"'},
+  {id:'ocr',name:'OCR Text Recognition 🆕',w:5,fn:doOCR,
+   cmd:'<span class="prompt">$</span> tesseract flag.png out  <span class="comment"># basic OCR</span>\n<span class="prompt">$</span> convert flag.png -resize 300% up.png && tesseract up.png out  <span class="comment"># upscale (helps small text)</span>\n<span class="prompt">$</span> convert flag.png -channel RGB -separate -evaluate-sequence min g.png && tesseract g.png out  <span class="comment"># min-channel: coloured text -> black</span>'},
+  {id:'inspector',name:'Pixel Inspector (interactive)',w:1,fn:doInspector,
+   cmd:'<span class="prompt">$</span> python3 -c "from PIL import Image; img=Image.open(\'flag.png\'); print(img.getpixel((0,0)))"  <span class="comment"># get pixel at x,y</span>\n<span class="prompt">$</span> python3 -c "from PIL import Image; img=Image.open(\'flag.png\'); print(list(img.getdata())[:10])"  <span class="comment"># first 10 pixels</span>'},
+  {id:'combiner',name:'Image Combiner',w:1,fn:doCombiner,
+   cmd:'<span class="comment"># Stegsolve: Analyse → Image Combiner</span>\n<span class="prompt">$</span> python3 -c "\nfrom PIL import Image, ImageChops\na=Image.open(\'flag.png\'); b=Image.open(\'original.png\')\nImageChops.difference(a,b).save(\'diff.png\')"  <span class="comment"># difference/XOR</span>\n<span class="prompt">$</span> compare flag.png original.png diff.png  <span class="comment"># ImageMagick compare</span>'},
+  {id:'stereogram',name:'Stereogram Solver (auto)',w:3,fn:doStereogram,
+   cmd:'<span class="comment"># Stegsolve: Analyse → Stereogram Solver</span>\n<span class="prompt">$</span> python3 -c "\nfrom PIL import Image\nimg=Image.open(\'flag.png\'); px=img.load(); off=100\nout=Image.new(\'RGB\',(img.width,img.height))\nop=out.load()\nfor y in range(img.height):\n  for x in range(img.width-off):\n    a=px[x,y]; b=px[x+off,y]\n    op[x,y]=tuple(a^b for a,b in zip(a[:3],b[:3]))\nout.save(\'stereo.png\')"'},
+  {id:'decoderlab',name:'Decoder Lab (consolidated + manual)',w:1,fn:doDecoderLab,
+   cmd:'<span class="prompt">$</span> echo DATA | base64 -d   <span class="comment"># or: base32 -d · xxd -r -p (hex) · tr A-Za-z N-ZA-Mn-za-m (ROT13)</span>'},
+];
+
+async function runAll(){
+  const res=document.getElementById('results');res.innerHTML='';labFindings.length=0;
+  const gp=document.getElementById('global-progress');gp.style.display='block';
+  const tw=steps.reduce((s,x)=>s+x.w,0);let dw=0;
+  for(const s of steps){
+    updProg(s.name,dw,tw);
+    const card=document.createElement('div');card.className='card';card.id='c-'+s.id;
+    const cmdHtml=s.cmd?`<div class="cmd-box"><span class="cmd-label">CLI</span><code>${s.cmd.replace(/flag\.png/g,esc(fileName)).replace(/flag\.jpg/g,esc(fileName))}</code></div>`:'';
+    card.innerHTML=`<h2>${s.name}<span class="badge badge-run"><span class="spin"></span>running</span></h2>${cmdHtml}<div id="o-${s.id}"></div>`;
+    res.appendChild(card);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>card.classList.add('visible')));
+    try{await new Promise(r=>setTimeout(()=>{s.fn(document.getElementById('o-'+s.id));r()},15))}
+    catch(e){document.getElementById('o-'+s.id).innerHTML=`<p style="color:var(--red)">Error: ${esc(e.message)}</p>`}
+    card.querySelector('.badge').className='badge badge-done';card.querySelector('.badge').textContent='✓ done';
+    dw+=s.w;updProg(s.name,dw,tw);
+  }
+  document.getElementById('prog-step').innerHTML=`&#9989; Deep analysis complete — all ${steps.length} modules finished`;
+  document.getElementById('prog-pct').textContent='100%';document.getElementById('prog-bar').style.width='100%';
+  setTimeout(()=>gp.style.display='none',3000);
+}
+function updProg(name,d,t){const p=Math.round(d/t*100);document.getElementById('prog-step').innerHTML=`<span class="spin"></span> ${esc(name)}`;document.getElementById('prog-pct').textContent=p+'%';document.getElementById('prog-bar').style.width=p+'%'}
+
+// ========== ANALYSIS MODULES ==========
+
+function doOverview(el){
+  const mg=detectMagic();const d=imgData.data;const cs=new Set();let ha=false;
+  for(let i=0;i<d.length;i+=4){cs.add((d[i]<<16)|(d[i+1]<<8)|d[i+2]);if(d[i+3]<255)ha=true}
+  el.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap"><div><canvas id="ov-t" style="max-width:280px;max-height:280px;border:1px solid var(--green);border-radius:4px"></canvas></div><div style="flex:1;min-width:220px"><table>
+  <tr><td>Filename</td><td>${esc(fileName)}</td></tr><tr><td>Size</td><td>${fmtB(fileBytes.length)} (${fileBytes.length.toLocaleString()} bytes)</td></tr>
+  <tr><td>Dimensions</td><td>${imgW}×${imgH}</td></tr><tr><td>Pixels</td><td>${(imgW*imgH).toLocaleString()}</td></tr>
+  <tr><td>MIME</td><td>${esc(fileType||'?')}</td></tr><tr><td>Magic</td><td style="font-family:monospace">${mg.hex}</td></tr>
+  <tr><td>Type</td><td>${mg.type}</td></tr><tr><td>Unique Colors</td><td>${cs.size.toLocaleString()}</td></tr>
+  <tr><td>Alpha</td><td>${ha?'<span style="color:var(--yellow)">Yes</span>':'No'}</td></tr><tr><td>Bit Depth</td><td>${bitDepth()}</td></tr>
+  </table></div></div>`;
+  const tc=document.getElementById('ov-t');const sc=Math.min(280/imgW,280/imgH,1);tc.width=imgW*sc;tc.height=imgH*sc;tc.getContext('2d').drawImage(origImage,0,0,tc.width,tc.height);
+}
+
+function doMetadata(el){
+  const e=[];e.push(['Format',fileType||'?'],['Size',fmtB(fileBytes.length)],['Dimensions',imgW+'×'+imgH],['Bit Depth',bitDepth()]);
+  if(fileBytes[0]===0xFF&&fileBytes[1]===0xD8)findExif().forEach(x=>e.push(x));
+  if(fileBytes[0]===0x89&&fileBytes[1]===0x50)findPNGText().forEach(x=>e.push(x));
+  const t=new TextDecoder('ascii',{fatal:false}).decode(fileBytes.slice(0,Math.min(65536,fileBytes.length)));
+  ['Canon','Nikon','SONY','Apple','Samsung','Google','Adobe','GIMP','Photoshop','Paint.NET'].forEach(s=>{const i=t.indexOf(s);if(i>=0)e.push(['Software hint',s+' @ 0x'+i.toString(16)])});
+  el.innerHTML='<table>'+e.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v+'')}</td></tr>`).join('')+'</table>';
+}
+
+function doStructure(el){
+  if(fileBytes[0]===0x89&&fileBytes[1]===0x50){
+    let h='<p class="desc">PNG Chunks</p><table><tr><th>Chunk</th><th>Length</th><th>CRC</th><th>Details</th></tr>';
+    let i=8;while(i<fileBytes.length-4){
+      const len=r32(i);const tp=String.fromCharCode(fileBytes[i+4]||0,fileBytes[i+5]||0,fileBytes[i+6]||0,fileBytes[i+7]||0);
+      const co=i+8+len;let crc=co+3<fileBytes.length?'0x'+(r32(co)>>>0).toString(16).padStart(8,'0'):'?';
+      h+=`<tr><td>${esc(tp)}</td><td>${len}</td><td style="font-size:.72rem">${crc}</td><td>${esc(pngDetail(tp,fileBytes.slice(i+8,i+8+Math.min(len,200))))}</td></tr>`;
+      i+=12+len;if(tp==='IEND'||i>fileBytes.length)break;
+    }
+    el.innerHTML=h+'</table>';
+  }else if(fileBytes[0]===0xFF&&fileBytes[1]===0xD8){
+    let h='<p class="desc">JPEG Markers</p><table><tr><th>Marker</th><th>Offset</th><th>Length</th><th>Name</th></tr>';
+    let i=0;while(i<fileBytes.length-1){
+      if(fileBytes[i]===0xFF){const m=fileBytes[i+1];let len=0;
+        if(m!==0xD8&&m!==0xD9&&m!==0&&i+3<fileBytes.length)len=(fileBytes[i+2]<<8)|fileBytes[i+3];
+        h+=`<tr><td style="font-family:monospace">FF${m.toString(16).padStart(2,'0').toUpperCase()}</td><td>0x${i.toString(16)}</td><td>${len||'-'}</td><td>${esc(jpgName(m))}</td></tr>`;
+        if(m===0xD9)break;i+=len>0?len+2:2;}else i++;
+    }
+    el.innerHTML=h+'</table>';
+  }else{const mg=detectMagic();el.innerHTML=`<table><tr><td>Magic</td><td>${mg.hex}</td></tr><tr><td>Type</td><td>${mg.type}</td></tr></table>`}
+}
+
+function doEmbedded(el){
+  // Signatures (longer = more specific). Short (<4B) magics like BM/MZ/GZIP occur constantly inside
+  // compressed pixel data, so we only trust them when they appear AFTER the primary image payload.
+  const sigs=[
+    {n:'PNG',b:[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A]},
+    {n:'JPEG',b:[0xFF,0xD8,0xFF]},
+    {n:'GIF87a',b:[0x47,0x49,0x46,0x38,0x37,0x61]},
+    {n:'GIF89a',b:[0x47,0x49,0x46,0x38,0x39,0x61]},
+    {n:'BMP',b:[0x42,0x4D]},
+    {n:'PDF',b:[0x25,0x50,0x44,0x46]},
+    {n:'ZIP/APK/DOCX',b:[0x50,0x4B,0x03,0x04]},
+    {n:'ZIP (empty/EOCD)',b:[0x50,0x4B,0x05,0x06]},
+    {n:'RAR',b:[0x52,0x61,0x72,0x21,0x1A,0x07]},
+    {n:'7z',b:[0x37,0x7A,0xBC,0xAF,0x27,0x1C]},
+    {n:'GZIP',b:[0x1F,0x8B,0x08]},
+    {n:'XZ',b:[0xFD,0x37,0x7A,0x58,0x5A,0x00]},
+    {n:'BZIP2',b:[0x42,0x5A,0x68]},
+    {n:'ELF',b:[0x7F,0x45,0x4C,0x46]},
+    {n:'EXE/DLL',b:[0x4D,0x5A]},
+    {n:'RIFF (WAV/AVI/WEBP)',b:[0x52,0x49,0x46,0x46]},
+    {n:'OGG',b:[0x4F,0x67,0x67,0x53]},
+    {n:'FLAC',b:[0x66,0x4C,0x61,0x43]},
+    {n:'PSD',b:[0x38,0x42,0x50,0x53]}
+  ];
+  // Where does the primary image payload end? Anything after this = appended data (high CTF interest).
+  let payloadEnd=fileBytes.length;
+  if(fileBytes[0]===0x89&&fileBytes[1]===0x50){ // PNG: first IEND (+4 name +4 CRC)
+    for(let i=8;i<fileBytes.length-4;i++){if(fileBytes[i]===0x49&&fileBytes[i+1]===0x45&&fileBytes[i+2]===0x4E&&fileBytes[i+3]===0x44){payloadEnd=Math.min(fileBytes.length,i+8);break}}
+  }else if(fileBytes[0]===0xFF&&fileBytes[1]===0xD8){ // JPEG: last SOS(FFDA) then first EOI(FFD9) after it
+    let sos=-1;for(let i=2;i<fileBytes.length-1;i++){if(fileBytes[i]===0xFF&&fileBytes[i+1]===0xDA)sos=i}
+    for(let i=(sos>=0?sos+2:2);i<fileBytes.length-1;i++){if(fileBytes[i]===0xFF&&fileBytes[i+1]===0xD9){payloadEnd=i+2;break}}
+  }
+  const HDR=8; // this file's own magic
+  const appended=[],instream=[];
+  for(const s of sigs){const L=s.b.length;
+    for(let i=0;i<=fileBytes.length-L;i++){let ok=true;for(let j=0;j<L;j++){if(fileBytes[i+j]!==s.b[j]){ok=false;break}}if(!ok)continue;
+      if(i<HDR)continue;
+      if(i>=payloadEnd)appended.push({o:i,n:s.n});
+      else if(L>=4)instream.push({o:i,n:s.n}); // short coincidental sigs inside payload are dropped
+    }
+  }
+  const trailer=fileBytes.length-payloadEnd;
+  let h=`<p class="desc">Primary payload ends at <span class="hl">0x${payloadEnd.toString(16)}</span>${trailer>0?` — <span style="color:var(--yellow)">${fmtB(trailer)} of trailing data follows</span>`:' (no trailing data)'}.</p>`;
+  if(appended.length){
+    h+=`<h3 style="color:var(--yellow)">⚠ ${appended.length} signature(s) in appended data — likely real embedded file(s)</h3><pre>`;
+    appended.forEach(r=>h+=`<span style="color:var(--yellow)">0x${r.o.toString(16).padStart(6,'0')}</span>  ${esc(r.n)}\n`);
+    h+='</pre>';
+    h+=`<div class="cmd-box"><span class="cmd-label">extract</span><code><span class="prompt">$</span> binwalk -e ${esc(fileName)}\n<span class="prompt">$</span> foremost -i ${esc(fileName)} -o out/\n<span class="prompt">$</span> dd if=${esc(fileName)} bs=1 skip=${appended[0].o} of=extracted.bin  <span class="comment"># first appended signature</span></code></div>`;
+  }else if(trailer>0){
+    h+=`<pre>${fmtB(trailer)} of trailing data after the image, but no known file signature at its start. Could be raw or encoded — check Strings and the Hex tail.</pre>`;
+  }else{
+    h+='<pre>No trailing data after the primary image payload.</pre>';
+  }
+  if(instream.length){
+    h+=`<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--text);opacity:.7;font-size:.8rem">${instream.length} match(es) of ≥4-byte signatures inside image data (usually coincidental) — expand</summary><pre style="opacity:.6">`;
+    instream.slice(0,200).forEach(r=>h+=`0x${r.o.toString(16).padStart(6,'0')}  ${esc(r.n)}\n`);
+    if(instream.length>200)h+=`... +${instream.length-200} more\n`;
+    h+='</pre></details>';
+  }
+  if(window.StegBackend&&StegBackend.available&&StegBackend.available.binwalk){
+    h+=`<div class="cmd-box"><span class="cmd-label">backend</span><div style="padding:6px 0"><button class="btn btn-sm" onclick="StegBackend.run('binwalk', this.parentNode.querySelector('.bw-live'))">▶ Kjør binwalk -e nå (lokal backend)</button><div class="bw-live" style="margin-top:8px"></div></div></div>`;
+  }
+  el.innerHTML=h;
+}
+
+function doStrings(el){
+  const results=[];let cur='',off=0;
+  for(let i=0;i<fileBytes.length;i++){const b=fileBytes[i];if(b>=32&&b<127){if(!cur.length)off=i;cur+=String.fromCharCode(b)}else{if(cur.length>=4)results.push({o:off,s:cur});cur=''}}
+  if(cur.length>=4)results.push({o:off,s:cur});
+  const pwd=document.getElementById('password').value.trim();
+  let h=`<p class="desc">${results.length} strings found (min 4 chars)</p>`;
+  if(pwd){const all=results.map(r=>r.s).join('\n');if(all.includes(pwd))h+=`<p style="color:var(--yellow)">⚠ Password "${esc(pwd)}" found in strings!</p>`}
+  // Base64 auto-detection & recursive decoding (whole-file latin1 scan: URL-safe + unpadded + multi-line tolerant)
+  const b64hits=scanB64(new TextDecoder('latin1').decode(fileBytes));
+  if(b64hits.length>0){
+    h+=`<h3 style="color:var(--yellow)">&#128273; Encoded Data Detected & Auto-Decoded — base64 / base32 / hex (${b64hits.length} found)</h3>`;
+    b64hits.forEach(hit=>{h+=b64chainHTML(hit);labFindings.push(Object.assign({src:'Strings'},hit))});
+  }
+  // Also check for base64 in LSB extracted data later - flag it
+  h+=`<h3>Raw Strings Output</h3>`;
+  h+=`<pre>${results.slice(0,500).map(r=>`<span style="color:var(--green)">0x${r.o.toString(16).padStart(6,'0')}</span>  ${esc(r.s)}`).join('\n')}${results.length>500?'\n... +'+(results.length-500)+' more':''}</pre>`;
+  el.innerHTML=h;
+}
+
+function doHex(el){
+  let h='<p class="desc">Header (512B) + Tail (256B)</p><pre class="hex-view">'+hexR(0,Math.min(512,fileBytes.length));
+  if(fileBytes.length>768)h+='\n<span style="color:var(--red)">... '+fmtB(fileBytes.length-768)+' gap ...</span>\n\n'+hexR(fileBytes.length-256,fileBytes.length);
+  el.innerHTML=h+'</pre>';
+}
+function hexR(s,e){let h='';for(let i=s;i<e;i+=16){let hx='',a='';for(let j=0;j<16;j++){if(i+j<e){const b=fileBytes[i+j];hx+=b.toString(16).padStart(2,'0')+' ';a+=(b>=32&&b<127)?String.fromCharCode(b):'.'}else{hx+='   ';a+=' '}if(j===7)hx+=' '}h+=`<span class="offset">${i.toString(16).padStart(8,'0')}</span>  ${esc(hx)} <span class="ascii">${esc(a)}</span>\n`}return h}
+
+function doChannels(el){
+  const ch=[{n:'Original',f:(r,g,b,a)=>[r,g,b,a]},{n:'Red',f:(r)=>[r,0,0,255]},{n:'Green',f:(r,g)=>[0,g,0,255]},{n:'Blue',f:(r,g,b)=>[0,0,b,255]},{n:'Alpha',f:(r,g,b,a)=>[a,a,a,255]},{n:'Red (gray)',f:(r)=>[r,r,r,255]},{n:'Green (gray)',f:(r,g)=>[g,g,g,255]},{n:'Blue (gray)',f:(r,g,b)=>[b,b,b,255]},{n:'Luminance',f:(r,g,b)=>{const v=~~(r*.299+g*.587+b*.114);return[v,v,v,255]}}];
+  el.innerHTML='<div class="img-grid" id="ch-g"></div>';const g=document.getElementById('ch-g');const d=imgData.data;
+  ch.forEach(c=>{const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);for(let i=0;i<d.length;i+=4){const[a,b,e,f]=c.f(d[i],d[i+1],d[i+2],d[i+3]);o.data[i]=a;o.data[i+1]=b;o.data[i+2]=e;o.data[i+3]=f}ctx.putImageData(o,0,0);addCell(g,cv,c.n)});
+}
+
+function doRemap(el){
+  const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);const d=imgData.data;const m={};
+  for(let i=0;i<d.length;i+=4){const k=(d[i]<<16)|(d[i+1]<<8)|d[i+2];if(!(k in m))m[k]=[(Math.random()*255)|0,(Math.random()*255)|0,(Math.random()*255)|0];const v=m[k];o.data[i]=v[0];o.data[i+1]=v[1];o.data[i+2]=v[2];o.data[i+3]=255}
+  ctx.putImageData(o,0,0);el.innerHTML=`<p class="desc">Random palette remap — ${Object.keys(m).length.toLocaleString()} unique colors</p>`;
+  cv.style.cssText='max-width:100%;border:1px solid var(--green);border-radius:4px;cursor:pointer';cv.onclick=()=>showModal(cv);el.appendChild(cv);
+}
+
+function doHistogram(el){
+  const d=imgData.data;const hR=new Uint32Array(256),hG=new Uint32Array(256),hB=new Uint32Array(256),hL=new Uint32Array(256);
+  for(let i=0;i<d.length;i+=4){hR[d[i]]++;hG[d[i+1]]++;hB[d[i+2]]++;hL[~~(d[i]*.299+d[i+1]*.587+d[i+2]*.114)]++}
+  el.innerHTML='<div class="histo-wrap"><canvas id="hr" width="256" height="170"></canvas><canvas id="hg" width="256" height="170"></canvas><canvas id="hb" width="256" height="170"></canvas><canvas id="hl" width="256" height="170"></canvas></div>';
+  dH('hr',hR,'#ff4444','Red');dH('hg',hG,'#44ff44','Green');dH('hb',hB,'#4488ff','Blue');dH('hl',hL,'#ccc','Luminance');
+  const t=imgW*imgH;el.insertAdjacentHTML('beforeend',`<p class="desc" style="margin-top:8px">Avg: R=${(hR.reduce((s,v,i)=>s+v*i,0)/t).toFixed(1)} G=${(hG.reduce((s,v,i)=>s+v*i,0)/t).toFixed(1)} B=${(hB.reduce((s,v,i)=>s+v*i,0)/t).toFixed(1)}</p>`);
+}
+function dH(id,h,c,l){const cv=document.getElementById(id);if(!cv)return;const x=cv.getContext('2d');x.fillStyle='#0b121f';x.fillRect(0,0,256,170);const mx=Math.max(...h);if(!mx)return;x.fillStyle=c;x.globalAlpha=.7;for(let i=0;i<256;i++){const v=(h[i]/mx)*155;x.fillRect(i,165-v,1,v)}x.globalAlpha=1;x.fillStyle=c;x.font='11px monospace';x.fillText(l,4,14)}
+
+function doFilters(el){
+  const fs=[{n:'Invert',f:(r,g,b)=>[255-r,255-g,255-b]},{n:'Grayscale',f:(r,g,b)=>{const v=~~(r*.299+g*.587+b*.114);return[v,v,v]}},{n:'Edge (Sobel)',f:null},{n:'XOR R⊕G⊕B',f:(r,g,b)=>{const v=r^g^b;return[v,v,v]}},{n:'XOR R⊕G',f:(r,g)=>{const v=r^g;return[v,v,v]}},{n:'XOR G⊕B',f:(r,g,b)=>{const v=g^b;return[v,v,v]}},{n:'Threshold 128',f:(r,g,b)=>{const v=~~(r*.299+g*.587+b*.114)>=128?255:0;return[v,v,v]}}];
+  el.innerHTML='<div class="img-grid" id="fl-g"></div>';const g=document.getElementById('fl-g');const d=imgData.data;
+  fs.forEach(f=>{const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);
+    if(!f.f){for(let y=1;y<imgH-1;y++)for(let x=0;x<imgW;x++){if(x===0||x===imgW-1){const i=(y*imgW+x)*4;o.data[i]=o.data[i+1]=o.data[i+2]=0;o.data[i+3]=255;continue}let gx=0,gy=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const idx=((y+dy)*imgW+(x+dx))*4;const gr=(d[idx]+d[idx+1]+d[idx+2])/3;gx+=gr*[[-1,0,1],[-2,0,2],[-1,0,1]][dy+1][dx+1];gy+=gr*[[-1,-2,-1],[0,0,0],[1,2,1]][dy+1][dx+1]}const mg=clamp(Math.sqrt(gx*gx+gy*gy));const i=(y*imgW+x)*4;o.data[i]=mg;o.data[i+1]=mg;o.data[i+2]=mg;o.data[i+3]=255}}
+    else{for(let i=0;i<d.length;i+=4){const[a,b,c]=f.f(d[i],d[i+1],d[i+2]);o.data[i]=a;o.data[i+1]=b;o.data[i+2]=c;o.data[i+3]=255}}
+    ctx.putImageData(o,0,0);addCell(g,cv,f.n)});
+}
+
+function doBitPlanes(el){
+  const MAXPX=1000000; // cap area per plane; 32 planes are held for the modal zoom, so bound memory
+  const sc=Math.min(1,Math.sqrt(MAXPX/(imgW*imgH)));
+  const W=Math.max(1,Math.round(imgW*sc)),H=Math.max(1,Math.round(imgH*sc));
+  const note=sc<1?` <span style="opacity:.6">— rendered at ${W}×${H} (down from ${imgW}×${imgH}) to bound memory; nearest-neighbour, so LSB patterns are preserved</span>`:'';
+  el.innerHTML=`<p class="desc">32 bit planes: 8 bits × R/G/B/Alpha. Bit 0=LSB (most likely to hide data).${note}</p>`;
+  const d=imgData.data;
+  [{n:'Red',c:0},{n:'Green',c:1},{n:'Blue',c:2},{n:'Alpha',c:3}].forEach(ch=>{
+    const s=document.createElement('div');s.innerHTML=`<h3>${ch.n}</h3>`;
+    const g=document.createElement('div');g.className='img-grid';
+    for(let bit=0;bit<8;bit++){const cv=mkC(W,H);const ctx=cv.getContext('2d');const o=ctx.createImageData(W,H);const mask=1<<bit;
+      for(let y=0;y<H;y++){const sy=sc<1?Math.floor(y/sc):y;for(let x=0;x<W;x++){const sx=sc<1?Math.floor(x/sc):x;const si=(sy*imgW+sx)*4;const v=(d[si+ch.c]&mask)?255:0;const di=(y*W+x)*4;o.data[di]=v;o.data[di+1]=v;o.data[di+2]=v;o.data[di+3]=255}}
+      ctx.putImageData(o,0,0);addCell(g,cv,`Bit ${bit}${bit===0?' (LSB)':bit===7?' (MSB)':''}`)}
+    s.appendChild(g);el.appendChild(s)});
+}
+
+function doLSB(el){
+  const cfgs=[{l:'RGB LSB row',ch:[0,1,2],bits:1,dir:'r'},{l:'RGB 2-bit row',ch:[0,1,2],bits:2,dir:'r'},{l:'Red LSB row',ch:[0],bits:1,dir:'r'},{l:'Green LSB row',ch:[1],bits:1,dir:'r'},{l:'Blue LSB row',ch:[2],bits:1,dir:'r'},{l:'RGB LSB col',ch:[0,1,2],bits:1,dir:'c'},{l:'RGBA LSB row',ch:[0,1,2,3],bits:1,dir:'r'}];
+  const max=2048;const d=imgData.data;const pwd=document.getElementById('password').value.trim();
+  // Common CTF brute force passwords
+  const wordlist=['','password','secret','hidden','stego','steganography','flag','ctf','admin','123456','pass','key','hide','test','1234','qwerty','letmein','master','shadow','hello','love','princess','abc123','monkey','dragon','passw0rd','iloveyou','trustno1','sunshine','welcome','p@ssw0rd','changeme','default','root','toor','guest','picoCTF','hackthebox','tryhackme'];
+  if(pwd&&!wordlist.includes(pwd))wordlist.unshift(pwd);
+  
+  let h='<p class="desc">7 LSB configs × auto-extract. Password brute force with '+wordlist.length+' passwords. Base64 auto-decode.</p>';
+  if(pwd)h+=`<p style="color:var(--cyan)">User password: "${esc(pwd)}"</p>`;
+  
+  // Standard LSB extraction
+  h+=`<h3 style="color:var(--green)">&#128272; Standard LSB Extraction</h3>`;
+  const allExtracts=[];
+  cfgs.forEach(cfg=>{
+    const bits=[];const mask=(1<<cfg.bits)-1;
+    const iter=cfg.dir==='r'?
+      (cb)=>{for(let y=0;y<imgH&&bits.length<max*8;y++)for(let x=0;x<imgW&&bits.length<max*8;x++)cb(x,y)}:
+      (cb)=>{for(let x=0;x<imgW&&bits.length<max*8;x++)for(let y=0;y<imgH&&bits.length<max*8;y++)cb(x,y)};
+    iter((x,y)=>{const idx=(y*imgW+x)*4;cfg.ch.forEach(c=>{const v=d[idx+c]&mask;for(let b=0;b<cfg.bits;b++)bits.push((v>>b)&1)})});
+    const bytes=[];for(let i=0;i+7<bits.length;i+=8){let byte=0;for(let b=0;b<8;b++)byte=(byte<<1)|bits[i+b];bytes.push(byte)}
+    const ascii=bytes.map(b=>(b>=32&&b<127)?String.fromCharCode(b):'.').join('');
+    allExtracts.push({label:cfg.l,ascii,bytes});
+    const pr=(bytes.filter(b=>b>=32&&b<127).length/bytes.length*100).toFixed(0);
+    const int=pr>40||ascii.includes('flag')||ascii.includes('CTF')||ascii.includes('{')||ascii.includes('http');
+    const pm=pwd&&ascii.includes(pwd);
+    h+=`<h3 style="font-size:.82rem">${cfg.l} <span style="font-size:.7rem;color:${int?'var(--yellow)':'var(--text)'};opacity:.7">${pr}% printable${int?' ⚠':''}${pm?' 🔑 PWD':''}</span></h3><pre style="max-height:100px;font-size:.7rem">${esc(ascii.substring(0,1200))}</pre>`;
+  });
+  
+  // Base64 auto-decode from LSB data (recursive engine)
+  let b64found=false;
+  allExtracts.forEach(ext=>{
+    const hits=scanB64(ext.ascii);
+    hits.forEach(hit=>{
+      if(!b64found){h+=`<h3 style="color:var(--yellow)">&#128273; Encoded Data Found in LSB — base64 / base32 / hex!</h3>`;b64found=true}
+      h+=b64chainHTML(hit,ext.label);labFindings.push(Object.assign({src:'LSB · '+ext.label},hit));
+    });
+  });
+  
+  // Password brute force: XOR-based decryption attempt
+  h+=`<h3 style="color:var(--green)">&#128272; Password Brute Force (XOR decrypt)</h3>`;
+  h+=`<p class="desc">Trying ${wordlist.length} common passwords as XOR keys against RGB LSB data...</p>`;
+  const mainBytes=allExtracts[0].bytes;// RGB LSB row
+  let bfHits=[];
+  wordlist.forEach(pw=>{
+    if(!pw)return;
+    const keyBytes=[];for(let i=0;i<pw.length;i++)keyBytes.push(pw.charCodeAt(i));
+    const dec=[];for(let i=0;i<Math.min(mainBytes.length,512);i++)dec.push(mainBytes[i]^keyBytes[i%keyBytes.length]);
+    const ascii=dec.map(b=>(b>=32&&b<127)?String.fromCharCode(b):'.').join('');
+    const pr=dec.filter(b=>b>=32&&b<127).length/dec.length;
+    const hasFlag=ascii.includes('flag')||ascii.includes('CTF')||ascii.includes('{')||ascii.includes('http')||ascii.includes('pico');
+    if(pr>.55||hasFlag)bfHits.push({pw,ascii,pr:(pr*100).toFixed(0),flag:hasFlag});
+  });
+  // Also try passwords directly as steghide-style: check if password appears after XOR at known offsets
+  wordlist.forEach(pw=>{
+    if(!pw)return;
+    // Simple check: does the first N bytes of the image XOR to "flag" or similar patterns?
+    const keyBytes=[];for(let i=0;i<pw.length;i++)keyBytes.push(pw.charCodeAt(i));
+    // Check raw file bytes after IDAT/image data for XOR patterns
+    const startOff=Math.min(fileBytes.length-512,Math.max(0,fileBytes.length-1024));
+    const dec=[];for(let i=0;i<512&&startOff+i<fileBytes.length;i++)dec.push(fileBytes[startOff+i]^keyBytes[i%keyBytes.length]);
+    const ascii=dec.map(b=>(b>=32&&b<127)?String.fromCharCode(b):'.').join('');
+    const hasFlag=ascii.includes('flag')||ascii.includes('CTF')||ascii.includes('{');
+    if(hasFlag)bfHits.push({pw:pw+' (tail XOR)',ascii,pr:'N/A',flag:true});
+  });
+  if(bfHits.length>0){
+    bfHits.sort((a,b)=>(b.flag?1:0)-(a.flag?1:0)||parseFloat(b.pr)-parseFloat(a.pr));
+    bfHits.slice(0,10).forEach(hit=>{
+      const style=hit.flag?'border-color:var(--yellow);background:rgba(255,204,0,.05)':'';
+      h+=`<div style="border:1px solid var(--green);border-radius:4px;padding:6px;margin:4px 0;${style}"><span style="color:var(--cyan);font-size:.8rem">Password: <strong>${esc(hit.pw)}</strong></span> <span style="font-size:.72rem;opacity:.6">${hit.pr}% printable${hit.flag?' ⚠ POSSIBLE FLAG':''}  </span><pre style="max-height:60px;font-size:.68rem;margin-top:4px">${esc(hit.ascii.substring(0,400))}</pre></div>`;
+    });
+  }else{
+    h+=`<p style="font-size:.8rem;opacity:.6">No promising results from brute force. Data may use a complex encryption scheme.</p>`;
+  }
+  el.innerHTML=h;
+}
+
+function doEntropy(el){
+  const bs=16;const bw=Math.ceil(imgW/bs);const bh=Math.ceil(imgH/bs);
+  const cv=mkC(bw,bh);const ctx=cv.getContext('2d');const o=ctx.createImageData(bw,bh);const d=imgData.data;let te=0;
+  for(let by=0;by<bh;by++)for(let bx=0;bx<bw;bx++){
+    const freq=new Uint32Array(256);let cnt=0;
+    for(let y=by*bs;y<Math.min((by+1)*bs,imgH);y++)for(let x=bx*bs;x<Math.min((bx+1)*bs,imgW);x++){const idx=(y*imgW+x)*4;freq[~~((d[idx]+d[idx+1]+d[idx+2])/3)]++;cnt++}
+    let ent=0;for(let i=0;i<256;i++){if(freq[i]>0){const p=freq[i]/cnt;ent-=p*Math.log2(p)}}te+=ent;
+    const n=ent/8;const r=n<.5?0:~~((n-.5)*2*255);const g=n<.5?~~(n*2*255):~~((1-n)*2*255);const b=n<.5?~~((1-n*2)*255):0;
+    const pi=(by*bw+bx)*4;o.data[pi]=r;o.data[pi+1]=g;o.data[pi+2]=b;o.data[pi+3]=255;
+  }
+  ctx.putImageData(o,0,0);const sc=mkC(bw*4,bh*4);const sctx=sc.getContext('2d');sctx.imageSmoothingEnabled=false;sctx.drawImage(cv,0,0,bw*4,bh*4);
+  const avg=(te/(bw*bh)).toFixed(2);
+  el.innerHTML=`<p class="desc">Blue=uniform, Red=random. Avg: ${avg}/8.0. Block: ${bs}px</p>`;
+  sc.style.cssText='max-width:100%;border:1px solid var(--green);border-radius:4px;cursor:pointer';sc.onclick=()=>showModal(sc);el.appendChild(sc);
+  if(avg>7.2)el.insertAdjacentHTML('beforeend',`<p style="color:var(--yellow);margin-top:6px">⚠ Very high entropy (${avg}) — possible encrypted/hidden data!</p>`);
+}
+
+function doQR(el){
+  const d=imgData.data;
+  // Try jsQR library first (if loaded)
+  if(typeof jsQR!=='undefined'){
+    try{
+      const code=jsQR(d,imgW,imgH,{inversionAttempts:'dontInvert'});
+      if(code){
+        el.innerHTML=`<div class="qr-found"><strong>✅ QR Code detected with jsQR!</strong><br><span style="font-size:.85rem;margin-top:4px;display:block">Data: <code style="background:var(--bg2);padding:2px 6px;border-radius:3px">${esc(code.data)}</code></span><br><span style="font-size:.75rem;opacity:.7">Location: (${code.location.topLeftCorner.x}, ${code.location.topLeftCorner.y}) to (${code.location.bottomRightCorner.x}, ${code.location.bottomRightCorner.y})</span></div>`;
+        // Draw box on canvas
+        el.innerHTML+='<div class="img-grid" id="qr-g"></div>';const g=document.getElementById('qr-g');
+        const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');ctx.drawImage(origImage,0,0);
+        ctx.strokeStyle='#9fef00';ctx.lineWidth=3;
+        ctx.beginPath();
+        ctx.moveTo(code.location.topLeftCorner.x,code.location.topLeftCorner.y);
+        ctx.lineTo(code.location.topRightCorner.x,code.location.topRightCorner.y);
+        ctx.lineTo(code.location.bottomRightCorner.x,code.location.bottomRightCorner.y);
+        ctx.lineTo(code.location.bottomLeftCorner.x,code.location.bottomLeftCorner.y);
+        ctx.closePath();ctx.stroke();
+        addCell(g,cv,'QR Detected');
+        return;
+      }
+    }catch(e){console.log('jsQR failed:',e)}
+  }
+  // Fallback to pattern detection
+  let hints=[];
+  for(let y=0;y<imgH;y+=Math.max(1,~~(imgH/80))){
+    let runs=[];let last=-1;let rl=0;
+    for(let x=0;x<imgW;x++){
+      const bin=~~((d[(y*imgW+x)*4]+d[(y*imgW+x)*4+1]+d[(y*imgW+x)*4+2])/3)<128?0:1;
+      if(bin===last)rl++;else{if(last>=0)runs.push({v:last,l:rl});last=bin;rl=1}
+      if(runs.length>=5){const l5=runs.slice(-5);
+        if(l5[0].v===0&&l5[2].v===0&&l5[4].v===0&&l5[1].v===1&&l5[3].v===1){
+          const u=l5[0].l;const t=u*.7;
+          if(Math.abs(l5[1].l-u)<t&&Math.abs(l5[2].l-u*3)<t*3&&Math.abs(l5[3].l-u)<t&&Math.abs(l5[4].l-u)<t)hints.push({x,y,u})}}
+    }
+  }
+  if(hints.length>=2){
+    el.innerHTML=`<div class="qr-found"><strong>✅ QR finder patterns detected!</strong> ${hints.length} hits. First near (${hints[0].x},${hints[0].y}).<br><span style="font-size:.8rem">Use a QR reader on the exported image to decode.</span></div>`;
+    el.innerHTML+='<div class="img-grid" id="qr-g"></div>';const g=document.getElementById('qr-g');
+    [{n:'Original',f:null},{n:'Inverted',f:(r,g,b)=>[255-r,255-g,255-b]},{n:'Threshold',f:(r,g,b)=>{const v=~~(r*.3+g*.59+b*.11)>=128?255:0;return[v,v,v]}}].forEach(m=>{
+      const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');if(!m.f)ctx.drawImage(origImage,0,0);else{const o=ctx.createImageData(imgW,imgH);for(let i=0;i<d.length;i+=4){const[a,b,c]=m.f(d[i],d[i+1],d[i+2]);o.data[i]=a;o.data[i+1]=b;o.data[i+2]=c;o.data[i+3]=255}ctx.putImageData(o,0,0)}addCell(g,cv,m.n)});
+  }else{
+    el.innerHTML='<p class="desc">No QR found with jsQR or pattern detection. Checking LSB planes...</p><div class="img-grid" id="qr-g2"></div>';
+    const g=document.getElementById('qr-g2');
+    [0,1,2].forEach(ch=>{const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);
+      for(let i=0;i<d.length;i+=4){const v=(d[i+ch]&1)?255:0;o.data[i]=v;o.data[i+1]=v;o.data[i+2]=v;o.data[i+3]=255}
+      ctx.putImageData(o,0,0);addCell(g,cv,['Red','Green','Blue'][ch]+' LSB')});
+  }
+}
+
+function doInspector(el){
+  el.innerHTML=`<p class="desc">Hover/click to inspect pixel values.</p><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start"><div style="flex:1;min-width:220px;overflow:auto"><canvas id="ins-c"></canvas></div><div style="width:180px"><canvas id="px-z" width="160" height="160" style="margin-bottom:6px;border:1px solid var(--green);border-radius:4px;image-rendering:pixelated"></canvas><div id="px-i" style="font-size:.78rem;padding:6px;border:1px solid rgba(159,239,0,.2);border-radius:4px;background:var(--bg2)">Click on image...</div></div></div>`;
+  const c=document.getElementById('ins-c');c.width=imgW;c.height=imgH;c.style.cssText='max-width:100%;cursor:crosshair;border:1px solid var(--green);border-radius:4px';
+  c.getContext('2d').drawImage(origImage,0,0);
+  const handler=e=>{const rect=c.getBoundingClientRect();const x=~~((e.clientX-rect.left)*(imgW/rect.width));const y=~~((e.clientY-rect.top)*(imgH/rect.height));
+    if(x<0||x>=imgW||y<0||y>=imgH)return;const idx=(y*imgW+x)*4;const d=imgData.data;const r=d[idx],g=d[idx+1],b=d[idx+2],a=d[idx+3];
+    const zc=document.getElementById('px-z');const zx=zc.getContext('2d');zx.imageSmoothingEnabled=false;zx.clearRect(0,0,160,160);
+    const zr=5;zx.drawImage(origImage,x-zr,y-zr,zr*2+1,zr*2+1,0,0,160,160);zx.strokeStyle='#fff';zx.lineWidth=1;const cs=160/(zr*2+1);zx.strokeRect(zr*cs,zr*cs,cs,cs);
+    const hex='#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+    document.getElementById('px-i').innerHTML=`<strong>(${x},${y})</strong><br>RGBA:(${r},${g},${b},${a})<br>Hex:${hex}<br>R:${r.toString(2).padStart(8,'0')}<br>G:${g.toString(2).padStart(8,'0')}<br>B:${b.toString(2).padStart(8,'0')}<br><div style="width:20px;height:20px;background:${hex};border:1px solid var(--green);margin-top:4px;border-radius:3px;display:inline-block"></div>`};
+  c.addEventListener('mousemove',handler);c.addEventListener('click',handler);
+}
+
+function doCombiner(el){
+  el.innerHTML=`<p class="desc">XOR/AND/OR/SUB two images to find hidden differences (Stegsolve-style).</p><div id="cd" style="border:2px dashed rgba(159,239,0,.4);border-radius:var(--radius);padding:18px;text-align:center;cursor:pointer;margin:8px 0"><p style="color:var(--green)">Drop or click to load second image</p><input type="file" id="ci" accept="image/*" style="display:none"></div><div class="ctrl-row"><label>Op:</label><select id="cop"><option>xor</option><option>and</option><option>or</option><option>sub</option><option>add</option></select><button class="btn btn-sm" onclick="doComb()" id="cbtn" disabled>Combine</button></div><div id="co"></div>`;
+  const dd=document.getElementById('cd'),ci=document.getElementById('ci');
+  dd.onclick=()=>ci.click();dd.addEventListener('dragover',e=>e.preventDefault());
+  dd.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)ldComb(e.dataTransfer.files[0])});
+  ci.addEventListener('change',()=>{if(ci.files.length)ldComb(ci.files[0])});
+}
+function ldComb(f){const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{combinerImage=img;document.getElementById('cd').innerHTML=`<p style="color:var(--green)">✅ ${esc(f.name)} (${img.naturalWidth}×${img.naturalHeight})</p>`;document.getElementById('cbtn').disabled=false};img.src=URL.createObjectURL(new Blob([e.target.result]))};r.readAsArrayBuffer(f)}
+function doComb(){if(!combinerImage)return;const op=document.getElementById('cop').value;const w=Math.min(imgW,combinerImage.naturalWidth),h=Math.min(imgH,combinerImage.naturalHeight);const c2=mkC(w,h);c2.getContext('2d').drawImage(combinerImage,0,0);const d2=c2.getContext('2d').getImageData(0,0,w,h).data;const oc=mkC(w,h);const ox=oc.getContext('2d');const o=ox.createImageData(w,h);const d1=imgData.data;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i1=(y*imgW+x)*4,i2=(y*w+x)*4,io=(y*w+x)*4;for(let c=0;c<3;c++){if(op==='xor')o.data[io+c]=d1[i1+c]^d2[i2+c];else if(op==='and')o.data[io+c]=d1[i1+c]&d2[i2+c];else if(op==='or')o.data[io+c]=d1[i1+c]|d2[i2+c];else if(op==='sub')o.data[io+c]=Math.abs(d1[i1+c]-d2[i2+c]);else o.data[io+c]=clamp(d1[i1+c]+d2[i2+c])}o.data[io+3]=255}
+  ox.putImageData(o,0,0);const el=document.getElementById('co');el.innerHTML='';oc.style.cssText='max-width:100%;border:1px solid var(--green);border-radius:4px;cursor:pointer';oc.onclick=()=>showModal(oc);el.appendChild(oc)}
+
+function doStereogram(el){
+  const d=imgData.data;let bo=50,bs=Infinity;
+  for(let off=15;off<Math.min(imgW/2,350);off+=4){let sc=0;for(let sy=0;sy<8;sy++){const y=~~(imgH*sy/8);for(let x=0;x<imgW-off;x+=3){const i1=(y*imgW+x)*4,i2=(y*imgW+x+off)*4;sc+=Math.abs(d[i1]-d[i2])+Math.abs(d[i1+1]-d[i2+1])+Math.abs(d[i1+2]-d[i2+2])}}if(sc<bs){bs=sc;bo=off}}
+  const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);
+  for(let y=0;y<imgH;y++)for(let x=0;x<imgW;x++){const i1=(y*imgW+x)*4;if(x+bo<imgW){const i2=(y*imgW+x+bo)*4;for(let c=0;c<3;c++)o.data[i1+c]=d[i1+c]^d[i2+c]}o.data[i1+3]=255}
+  ctx.putImageData(o,0,0);
+  el.innerHTML=`<p class="desc">Auto offset: ${bo}px. XOR with shifted copy.</p><div class="ctrl-row"><label>Offset: <span id="sv">${bo}</span></label><input type="range" id="so" min="5" max="${Math.min(~~(imgW/2),500)}" value="${bo}" oninput="document.getElementById('sv').textContent=this.value"><button class="btn btn-sm" onclick="reStereo()">Re-render</button></div><div id="st-o"></div>`;
+  const so=document.getElementById('st-o');cv.style.cssText='max-width:100%;border:1px solid var(--green);border-radius:4px;cursor:pointer';cv.onclick=()=>showModal(cv);so.appendChild(cv);
+}
+function reStereo(){const off=+document.getElementById('so').value;const d=imgData.data;const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);for(let y=0;y<imgH;y++)for(let x=0;x<imgW;x++){const i1=(y*imgW+x)*4;if(x+off<imgW){const i2=(y*imgW+x+off)*4;for(let c=0;c<3;c++)o.data[i1+c]=d[i1+c]^d[i2+c]}o.data[i1+3]=255}ctx.putImageData(o,0,0);const so=document.getElementById('st-o');so.innerHTML='';cv.style.cssText='max-width:100%;border:1px solid var(--green);border-radius:4px;cursor:pointer';cv.onclick=()=>showModal(cv);so.appendChild(cv)}
+
+// ========== NEW v3.0 FUNCTIONS ==========
+
+function doXORSingle(el){
+  const d=imgData.data;
+  el.innerHTML='<p class="desc">XOR operations between R, G, B channels within the same image. Often reveals hidden patterns.</p><div class="img-grid" id="xor-g"></div>';
+  const g=document.getElementById('xor-g');
+  
+  const ops=[
+    {n:'R XOR G',fn:(r,g,b)=>r^g},
+    {n:'R XOR B',fn:(r,g,b)=>r^b},
+    {n:'G XOR B',fn:(r,g,b)=>g^b},
+    {n:'R XOR G XOR B',fn:(r,g,b)=>r^g^b}
+  ];
+  
+  ops.forEach(op=>{
+    const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);
+    for(let i=0;i<d.length;i+=4){
+      const v=op.fn(d[i],d[i+1],d[i+2]);
+      o.data[i]=v;o.data[i+1]=v;o.data[i+2]=v;o.data[i+3]=255;
+    }
+    ctx.putImageData(o,0,0);addCell(g,cv,op.n);
+  });
+}
+
+function doLSBCustom(el){
+  const d=imgData.data;
+  el.innerHTML='<p class="desc">LSB extraction with custom pixel ordering patterns. Standard tools assume row-first, but data may use column-first, spiral, or zigzag patterns.</p><div class="img-grid" id="lsb-c-g"></div>';
+  const g=document.getElementById('lsb-c-g');
+  
+  // Generate pixel orders
+  const patterns={
+    'Row-first (standard)':()=>{const o=[];for(let y=0;y<imgH;y++)for(let x=0;x<imgW;x++)o.push({x,y});return o},
+    'Column-first':()=>{const o=[];for(let x=0;x<imgW;x++)for(let y=0;y<imgH;y++)o.push({x,y});return o},
+    'Spiral':()=>{
+      const o=[];let l=0,r=imgW-1,t=0,b=imgH-1;
+      while(l<=r&&t<=b){
+        for(let x=l;x<=r;x++)o.push({x,y:t});t++;
+        for(let y=t;y<=b;y++)o.push({x:r,y});r--;
+        if(t<=b){for(let x=r;x>=l;x--)o.push({x,y:b});b--}
+        if(l<=r){for(let y=b;y>=t;y--)o.push({x:l,y});l++}
+      }
+      return o;
+    },
+    'Zigzag':()=>{
+      const o=[];
+      for(let y=0;y<imgH;y++){
+        if(y%2===0){for(let x=0;x<imgW;x++)o.push({x,y})}
+        else{for(let x=imgW-1;x>=0;x--)o.push({x,y})}
+      }
+      return o;
+    }
+  };
+  
+  Object.entries(patterns).forEach(([name,genFn])=>{
+    const order=genFn();const cv=mkC(imgW,imgH);const ctx=cv.getContext('2d');const o=ctx.createImageData(imgW,imgH);
+    // Extract Red channel LSB in custom order
+    for(let i=0;i<order.length;i++){
+      const {x,y}=order[i];const idx=(y*imgW+x)*4;
+      const v=(d[idx]&1)?255:0;
+      o.data[idx]=v;o.data[idx+1]=v;o.data[idx+2]=v;o.data[idx+3]=255;
+    }
+    ctx.putImageData(o,0,0);addCell(g,cv,name);
+  });
+}
+
+async function doOCR(el){
+  if(typeof Tesseract==='undefined'){
+    el.innerHTML='<p style="color:var(--yellow)">⚠️ Tesseract.js not loaded. OCR unavailable.<br><span style="font-size:.75rem">Install with: npm install tesseract.js</span></p>';
+    return;
+  }
+  el.innerHTML='<p class="desc">Running OCR... <span class="spin"></span></p>';
+  const FLAG_RE=/[A-Za-z0-9_]{2,}\{[^{}]{2,}\}/;
+  const fixFlag=t=>t.replace(/([A-Za-z0-9_]{2,})\s*[([{]\s*([^()\[\]{}]{2,}?)\s*[)\]}]/g,'$1{$2}');
+  const up=Math.max(1,Math.min(4,Math.round(1600/Math.max(imgW,1))));
+  // Skånsom forbehandling. INGEN binarisering/inversjon — det ødelegger ren, tynn tekst.
+  function prep(scale,mode){
+    const w=Math.max(1,Math.round(imgW*scale)),hh=Math.max(1,Math.round(imgH*scale));
+    const c=mkC(w,hh);const ctx=c.getContext('2d');
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    ctx.drawImage(origImage,0,0,w,hh);
+    if(mode==='color')return c;
+    const id=ctx.getImageData(0,0,w,hh);const d=id.data;
+    for(let i=0;i<d.length;i+=4){
+      // 'min' = min(R,G,B): gjør farget ELLER svart tekst mørk på hvit, uten terskling
+      const g=(mode==='min')?Math.min(d[i],d[i+1],d[i+2]):(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;
+      d[i]=d[i+1]=d[i+2]=g;
+    }
+    ctx.putImageData(id,0,0);return c;
+  }
+  const passes=[
+    {label:'rå (som før)',scale:1,mode:'color'},
+    {label:up+'× gråtone',scale:up,mode:'gray'},
+    {label:up+'× kontrast (min-kanal)',scale:up,mode:'min'}
+  ];
+  async function recog(canvas){
+    const {data}=await Tesseract.recognize(canvas,'eng',{logger:m=>{
+      const pe=el.querySelector('p');
+      if(m.status==='recognizing text'&&pe)pe.innerHTML=`OCR... ${~~(m.progress*100)}% <span class="spin"></span>`;
+    }});
+    return {text:(data.text||'').trim(),conf:Math.round(data.confidence||0)};
+  }
+  try{
+    const results=[];
+    for(let i=0;i<passes.length;i++){
+      const p=passes[i];const pe=el.querySelector('p');
+      if(pe)pe.innerHTML=`OCR ${i+1}/${passes.length}: ${esc(p.label)} <span class="spin"></span>`;
+      try{const r=await recog(prep(p.scale,p.mode));results.push({label:p.label,text:r.text,conf:r.conf});}
+      catch(err){results.push({label:p.label,text:'',conf:0});}
+    }
+    const score=r=>{const dc=ocrAutoDecode(r.text);const hit=FLAG_RE.test(fixFlag(r.text))||(dc&&FLAG_RE.test(fixFlag(dc.decoded)));return (hit?100000:0)+r.conf*100+r.text.length;};
+    results.sort((a,b)=>score(b)-score(a));
+    const best=results[0];const flag=best?fixFlag(best.text).match(FLAG_RE):null;
+    const dec=best?ocrAutoDecode(best.text):null;
+    const decFlag=dec?fixFlag(dec.decoded).match(FLAG_RE):null;
+    let h=`<p class="desc">✅ OCR ferdig — ${passes.length} passeringer.</p>`;
+    if(flag){
+      h+=`<div style="background:var(--bg2);border:1px solid var(--green);border-radius:4px;padding:10px 12px;margin:8px 0"><span style="color:var(--yellow)">🚩 Flagg (klammer normalisert)</span><br><code style="color:var(--green);font-size:1rem;word-break:break-all">${esc(flag[0])}</code></div>`;
+    }
+    if(best&&best.text){
+      h+=`<div style="margin:8px 0">Beste OCR-tekst (rå) — <b>${esc(best.label)}</b> (konfidens ${best.conf}%):<pre style="max-height:300px;white-space:pre-wrap">${esc(best.text)}</pre></div>`;
+    }else{
+      h+=`<p class="desc">❌ Ingen tekst funnet i noen passering.</p>`;
+    }
+    if(dec){
+      h+=`<div style="margin:8px 0;opacity:.85;font-size:.85rem">→ auto-dekodet (${dec.method}):</div>`;
+      if(decFlag){
+        h+=`<div style="background:var(--bg2);border:1px solid var(--green);border-radius:4px;padding:8px 10px;margin:4px 0"><span style="color:var(--yellow)">🚩 Flagg (fra OCR + ${dec.method})</span><br><code style="color:var(--green);font-size:1rem;word-break:break-all">${esc(decFlag[0])}</code></div>`;
+      }else{
+        h+=`<pre style="white-space:pre-wrap;word-break:break-all;color:var(--green);margin:.2rem 0">${esc(dec.decoded)}</pre>`;
+      }
+    }
+    if(best&&/flag|pico|ctf/i.test(best.text)){h+=`<p style="color:var(--yellow);margin-top:6px">⚠️ Inneholder nøkkelord: flag / pico / CTF</p>`;}
+    h+=`<details style="margin-top:10px"><summary style="cursor:pointer;opacity:.75;font-size:.85rem">Alle ${passes.length} passeringer (klikk)</summary>`;
+    for(const r of results){h+=`<div style="margin:6px 0;font-size:.82rem"><b>${esc(r.label)}</b> — konfidens ${r.conf}%<pre style="white-space:pre-wrap;opacity:.85;margin:.2rem 0 0;max-height:160px">${esc(r.text||'(tomt)')}</pre></div>`;}
+    h+=`</details>`;
+    h+=`<p class="desc" style="opacity:.65;font-size:.78rem;margin-top:8px">OCR er best-effort på stiliserte fonter — ser noe feil ut, les flagget rett av det rendrede bildet over.</p>`;
+    el.innerHTML=h;
+  }catch(e){
+    el.innerHTML=`<p style="color:var(--red)">⚠️ OCR error: ${esc(e.message)}</p>`;
+  }
+}
+
+// ========== HELPERS ==========
+function r32(i){return(fileBytes[i]<<24)|(fileBytes[i+1]<<16)|(fileBytes[i+2]<<8)|fileBytes[i+3]}
+function detectMagic(){if(!fileBytes||fileBytes.length<8)return{hex:'N/A',type:'?'};const h=Array.from(fileBytes.slice(0,8)).map(b=>b.toString(16).padStart(2,'0')).join(' ').toUpperCase();let t='Unknown';if(fileBytes[0]===0x89&&fileBytes[1]===0x50)t='PNG';else if(fileBytes[0]===0xFF&&fileBytes[1]===0xD8)t='JPEG';else if(fileBytes[0]===0x47&&fileBytes[1]===0x49)t='GIF';else if(fileBytes[0]===0x42&&fileBytes[1]===0x4D)t='BMP';else if(fileBytes[0]===0x52&&fileBytes[1]===0x49)t='RIFF';else if(fileBytes[0]===0x25&&fileBytes[1]===0x50)t='PDF';else if(fileBytes[0]===0x50&&fileBytes[1]===0x4B)t='ZIP';return{hex:h,type:t}}
+function bitDepth(){if(fileBytes&&fileBytes[0]===0x89&&fileBytes[1]===0x50&&fileBytes.length>24)return fileBytes[24]+' bpc, type '+fileBytes[25];return'N/A'}
+function findExif(){const r=[];for(let i=0;i<Math.min(fileBytes.length-6,65536);i++){if(fileBytes[i]===0x45&&fileBytes[i+1]===0x78&&fileBytes[i+2]===0x69&&fileBytes[i+3]===0x66){r.push(['EXIF','@ 0x'+i.toString(16)]);break}}for(let i=0;i<Math.min(fileBytes.length-5,1024);i++){if(fileBytes[i]===0x4A&&fileBytes[i+1]===0x46&&fileBytes[i+2]===0x49&&fileBytes[i+3]===0x46){r.push(['JFIF','@ 0x'+i.toString(16)]);break}}return r}
+function findPNGText(){const r=[];let i=8;while(i<fileBytes.length-8){const len=r32(i);const tp=String.fromCharCode(fileBytes[i+4],fileBytes[i+5],fileBytes[i+6],fileBytes[i+7]);if(tp==='tEXt'||tp==='iTXt'||tp==='zTXt'){const data=fileBytes.slice(i+8,i+8+len);const ni=data.indexOf(0);if(ni>=0){const k=new TextDecoder().decode(data.slice(0,ni));const v=new TextDecoder('utf-8',{fatal:false}).decode(data.slice(ni+1));r.push(['PNG '+tp+': '+k,v.substring(0,200)])}}i+=12+len;if(tp==='IEND')break}return r}
+function pngDetail(t,d){if(t==='IHDR'&&d.length>=13){const w=(d[0]<<24)|(d[1]<<16)|(d[2]<<8)|d[3];const h=(d[4]<<24)|(d[5]<<16)|(d[6]<<8)|d[7];return`${w}×${h}, ${d[8]}bpc, ${['Gray','','RGB','Idx','GA','','RGBA'][d[9]]||'?'}`}if((t==='tEXt'||t==='iTXt')&&d.length){const ni=d.indexOf(0);if(ni>=0)return new TextDecoder().decode(d.slice(0,ni))+': ...'}if(t==='pHYs'&&d.length>=9)return`${(d[0]<<24)|(d[1]<<16)|(d[2]<<8)|d[3]}×${(d[4]<<24)|(d[5]<<16)|(d[6]<<8)|d[7]}/${d[8]===1?'m':'?'}`;if(t==='IDAT')return'Image data';if(t==='IEND')return'End';if(t==='PLTE')return(d.length/3)+' colors';return''}
+function jpgName(m){return{0xD8:'SOI',0xD9:'EOI',0xE0:'APP0/JFIF',0xE1:'APP1/EXIF',0xE2:'APP2/ICC',0xDB:'DQT',0xC0:'SOF0 Baseline',0xC2:'SOF2 Progressive',0xC4:'DHT',0xDA:'SOS',0xFE:'Comment',0xDD:'DRI',0xED:'APP13/IPTC',0xEE:'APP14/Adobe'}[m]||'0x'+m.toString(16)}
+</script>
+<script src="/static/steg-backend.js"></script>
+</body>
+</html>

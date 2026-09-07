@@ -1,0 +1,20 @@
+# Kjøreartefakter — opplastede filer og utpakket innhold.
+# Disse inneholder data fra ekte analyser og skal aldri committes.
+uploads/
+extracted/
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Tredjepartsbinær. Lastes ned av brukeren selv — se steg 2 i README.md:
+# wget -O tools/StegExpose.jar https://raw.githubusercontent.com/b3dk7/StegExpose/master/StegExpose.jar
+tools/*.jar
+
+# Gammel kopi av kildekoden i dette repoet — blir utdatert.
+files.zip
+
+# Tom, erstattet av README.md
+README.txt

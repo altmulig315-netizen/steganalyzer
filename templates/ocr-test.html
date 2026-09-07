@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OCR Test</title>
+<!-- Bytt @5 til @4 for å teste samme Tesseract-versjon som hovedverktøyet -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root{color-scheme:dark}
+  body{background:#0d1117;color:#c9d1d9;font-family:ui-monospace,Menlo,Consolas,monospace;max-width:820px;margin:20px auto;padding:0 16px;font-size:14px}
+  h1{font-size:18px;color:#58a6ff;margin:0 0 4px}
+  .sub{opacity:.6;font-size:12px;margin-bottom:14px;line-height:1.5}
+  #drop{border:2px dashed #30363d;border-radius:8px;padding:22px;text-align:center;cursor:pointer;margin-bottom:10px}
+  #drop.hot{border-color:#58a6ff;background:#161b22}
+  #prev img{max-width:100%;border:1px solid #30363d;border-radius:6px;background:#fff}
+  .meta{font-size:12px;opacity:.75;margin:6px 0}
+  button{background:#238636;color:#fff;border:0;border-radius:6px;padding:8px 13px;cursor:pointer;font-family:inherit;font-size:13px;margin:6px 6px 0 0}
+  button:disabled{opacity:.4;cursor:default}
+  .card{border:1px solid #30363d;border-radius:8px;padding:10px 12px;margin:8px 0;background:#161b22}
+  .card h3{margin:0 0 4px;font-size:14px}
+  .ok{color:#3fb950}.bad{color:#f85149}
+  pre{white-space:pre-wrap;word-break:break-word;margin:4px 0 0;background:#0d1117;padding:8px;border-radius:4px;font-size:13px}
+  .flag{color:#3fb950;font-size:16px;font-weight:bold;margin:4px 0}
+  .err{color:#f85149}
+</style>
+</head>
+<body>
+<h1>OCR Test</h1>
+<div class="sub">Isolert Tesseract-test. Slipp inn et bilde — eller <b>digits.bin</b> (dekodes automatisk til bildet).
+Fire metoder kjøres og sammenlignes. <b>Feil vises fullt ut</b> — ingenting skjules bak «(tomt)».</div>
+
+<div id="tv" class="meta">Tesseract: laster…</div>
+<div id="drop">Slipp fil her, eller klikk for å velge<input type="file" id="f" hidden></div>
+<div id="prev"></div>
+<div id="btns"></div>
+<div id="out"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let CANVAS = null; // gjeldende bilde som OCR-es
+
+// ---- Tesseract lastet? vis status ----
+window.addEventListener('load', () => {
+  $('tv').innerHTML = (typeof Tesseract === 'undefined')
+    ? '<span class="err">Tesseract lastet IKKE — sjekk nettforbindelse/CDN.</span>'
+    : 'Tesseract lastet ✓ (v5 fra jsDelivr)';
+});
+
+// ---- fil-input + drag/drop ----
+$('drop').onclick = () => $('f').click();
+$('f').onchange = e => { if (e.target.files[0]) handle(e.target.files[0]); };
+['dragover','dragleave','drop'].forEach(ev => $('drop').addEventListener(ev, e => {
+  e.preventDefault();
+  $('drop').classList.toggle('hot', ev === 'dragover');
+  if (ev === 'drop' && e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]);
+}));
+
+// ---- minimal binær/hex/base64-dekoding (så digits.bin kan slippes direkte) ----
+function asciiText(b){
+  if (b.length > 10485760) return null;
+  for (let i = 0; i < Math.min(b.length, 200000); i++){
+    const c = b[i];
+    if (!(c===9||c===10||c===13||c===32||(c>=33&&c<=126))) return null;
+  }
+  let s=''; for (let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return s;
+}
+function decode(b){
+  const t0 = asciiText(b); if (t0===null) return null;
+  const t = t0.replace(/\s+/g,''); if (!t) return null;
+  if (/^[01]+$/.test(t) && t.length>=16){ const n=t.length-t.length%8, o=new Uint8Array(n/8); for(let i=0;i<n;i+=8)o[i/8]=parseInt(t.slice(i,i+8),2); return {bytes:o,enc:'binary'}; }
+  if (/^[0-9a-fA-F]+$/.test(t) && t.length%2===0){ const o=new Uint8Array(t.length/2); for(let i=0;i<t.length;i+=2)o[i/2]=parseInt(t.slice(i,i+2),16); return {bytes:o,enc:'hex'}; }
+  if (/^[A-Za-z0-9+/]+={0,2}$/.test(t) && t.length%4===0){ try{ const s=atob(t),o=new Uint8Array(s.length); for(let i=0;i<s.length;i++)o[i]=s.charCodeAt(i); return {bytes:o,enc:'base64'}; }catch(e){} }
+  return null;
+}
+function isImg(b){
+  return (b[0]===0xFF&&b[1]===0xD8&&b[2]===0xFF) || (b[0]===0x89&&b[1]===0x50&&b[2]===0x4E&&b[3]===0x47) ||
+         (b[0]===0x47&&b[1]===0x49&&b[2]===0x46) || (b[0]===0x42&&b[1]===0x4D);
+}
+
+async function handle(file){
+  $('out').innerHTML=''; $('prev').innerHTML=''; $('btns').innerHTML='';
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let bytes = buf, note = '';
+  if (!isImg(buf)){
+    const d = decode(buf);
+    if (d && isImg(d.bytes)){ bytes = d.bytes; note = `(dekodet fra ${d.enc}: ${buf.length} tegn → ${bytes.length} bytes)`; }
+    else { $('prev').innerHTML = '<div class="err">Ikke et bilde, og ingen dekodbar binær/hex/base64-lag funnet.</div>'; return; }
+  }
+  const url = URL.createObjectURL(new Blob([bytes]));
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img,0,0); CANVAS = c;
+    $('prev').innerHTML = `<img src="${url}"><div class="meta">${img.naturalWidth}×${img.naturalHeight} ${note}</div>`;
+    $('btns').innerHTML =
+      '<button onclick="runAll()">▶ Kjør alle metoder</button>' +
+      '<button onclick="run(barebones,\'Barebones recognize\')">Barebones</button>' +
+      '<button onclick="run(upscaled,\'Oppskalert 3×\')">Oppskalert 3×</button>' +
+      '<button onclick="run(minChannel,\'Min-kanal kontrast\')">Min-kanal</button>' +
+      '<button onclick="run(workerPsm,\'Worker + PSM 7 + whitelist\')">Worker+PSM7</button>';
+    runAll();
+  };
+  img.onerror = () => { $('prev').innerHTML = '<div class="err">Bildet kunne ikke lastes som bilde.</div>'; };
+  img.src = url;
+}
+
+// ---- forbehandling ----
+function scaled(mult, mode){
+  const w = CANVAS.width*mult, h = CANVAS.height*mult;
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  const ctx = c.getContext('2d'); ctx.imageSmoothingQuality='high'; ctx.drawImage(CANVAS,0,0,w,h);
+  if (mode){
+    const id = ctx.getImageData(0,0,w,h), d = id.data;
+    for (let i=0;i<d.length;i+=4){
+      const g = mode==='min' ? Math.min(d[i],d[i+1],d[i+2]) : (d[i]*.299+d[i+1]*.587+d[i+2]*.114)|0;
+      d[i]=d[i+1]=d[i+2]=g;
+    }
+    ctx.putImageData(id,0,0);
+  }
+  return c;
+}
+
+// ---- de fire OCR-metodene (hver returnerer {text, conf}) ----
+async function barebones(){ const {data} = await Tesseract.recognize(CANVAS,'eng'); return {text:data.text,conf:data.confidence}; }
+async function upscaled(){  const {data} = await Tesseract.recognize(scaled(3,null),'eng'); return {text:data.text,conf:data.confidence}; }
+async function minChannel(){ const {data} = await Tesseract.recognize(scaled(3,'min'),'eng'); return {text:data.text,conf:data.confidence}; }
+async function workerPsm(){
+  const w = await Tesseract.createWorker('eng', 1);
+  await w.setParameters({ tessedit_pageseg_mode:'7', tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}_-' });
+  const {data} = await w.recognize(scaled(3,'min'));
+  await w.terminate();
+  return {text:data.text,conf:data.confidence};
+}
+
+// ---- kjør én metode + vis resultat (FULL feil ved unntak) ----
+const FLAG = /[A-Za-z0-9_]{2,}\{[^{}]{2,}\}/;
+// Tesseract leser { som ( og } som ] på tynne fonter -> normaliser klamme-varianter til {}
+function fixFlag(t){ return t.replace(/([A-Za-z0-9_]{2,})\s*[([{]\s*([^()\[\]{}]{2,}?)\s*[)\]}]/g,'$1{$2}'); }
+async function run(fn, name){
+  if (!CANVAS) return;
+  const card = document.createElement('div'); card.className='card';
+  card.innerHTML = `<h3>${name}</h3><div class="meta">kjører…</div>`;
+  $('out').appendChild(card);
+  const t0 = performance.now();
+  try{
+    const r = await fn();
+    const dt = Math.round(performance.now()-t0);
+    const txt = (r.text||'').trim();
+    const m = fixFlag(txt).match(FLAG);
+    let html = `<h3 class="ok">${name} ✓</h3><div class="meta">${dt} ms · konfidens ${Math.round(r.conf||0)}%</div>`;
+    if (m) html += `<div class="flag">🚩 ${esc(m[0])}</div>`;
+    html += `<pre>${txt ? esc(txt) : '(tomt)'}</pre>`;
+    card.innerHTML = html;
+  }catch(e){
+    const dt = Math.round(performance.now()-t0);
+    card.innerHTML = `<h3 class="bad">${name} ✗ (kastet feil)</h3><div class="meta">${dt} ms</div>` +
+      `<pre class="err">${esc((e&&e.message)||String(e))}\n\n${esc((e&&e.stack)||'')}</pre>`;
+  }
+}
+async function runAll(){
+  $('out').innerHTML='';
+  const list = [[barebones,'Barebones recognize'],[upscaled,'Oppskalert 3×'],[minChannel,'Min-kanal kontrast'],[workerPsm,'Worker + PSM 7 + whitelist']];
+  for (const [fn,n] of list) await run(fn,n);
+}
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+</script>
+</body>
+</html>
